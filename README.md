@@ -103,3 +103,10 @@ Standard operational and verification tasks are orchestrated via the root `Makef
 
 - [System Scope and Architectural Strategy](docs/notification_platform_scope.md)
 - [Pilot Spike Plan and Validation Methodology](docs/pilot_spike_plan.md)
+
+---
+
+## License
+
+This project is licensed under the [Apache License, Version 2.0](LICENSE).
+
