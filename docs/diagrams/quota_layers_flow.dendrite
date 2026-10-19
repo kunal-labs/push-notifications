@@ -1,0 +1,207 @@
+renderOrder: nodes-first
+direction: right
+
+const GcpBlue = "#1a73e8"
+const GcpGreen = "#1e8e3e"
+const EmeraldTeal = "#0d9488"
+const CoralRed = "#d93025"
+const DarkSlate = "#202124"
+const SubText = "#5f6368"
+const CardBorder = "#dadce0"
+const BusStroke = "#334155"
+const SurfaceWhite = "#ffffff"
+
+Style @Ghost {
+  fill: transparent, strokeWidth: 0, fontColor: transparent, padding: 0
+}
+Style @ArchitectureRoot {
+  fill: "#f8fafd", strokeColor: "#c2d7f5", strokeWidth: 1.5, borderRadius: 16,
+  padding: 22, gap: 18, fontColor: "#3c4043", fontSize: 22, labelWeight: bold,
+  icon: "GoogleCloud", iconSize: 28
+}
+Style @Layer1Zone {
+  fill: "#e8f0fe", strokeColor: "#8ab4f8", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 14, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold
+}
+Style @Layer2Zone {
+  fill: "#e6f4ea", strokeColor: "#81c995", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 14, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold
+}
+Style @Layer3Zone {
+  fill: "#fce8e6", strokeColor: "#f6aea9", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 14, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold
+}
+Style @Layer4Zone {
+  fill: "#fef7e0", strokeColor: "#fde293", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 14, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold
+}
+Style @BlueSubGroup {
+  fill: "#d2e3fc", strokeColor: darken("#d2e3fc", 14), strokeWidth: 1, borderRadius: 10,
+  padding: 10, gap: 7, fontColor: $DarkSlate, fontSize: 13, labelWeight: bold
+}
+Style @GreenSubGroup {
+  fill: "#ceead6", strokeColor: darken("#ceead6", 14), strokeWidth: 1, borderRadius: 10,
+  padding: 10, gap: 7, fontColor: $DarkSlate, fontSize: 13, labelWeight: bold
+}
+Style @PeachSubGroup {
+  fill: "#f8d3c8", strokeColor: darken("#f8d3c8", 12), strokeWidth: 1, borderRadius: 10,
+  padding: 10, gap: 7, fontColor: $DarkSlate, fontSize: 13, labelWeight: bold
+}
+Style @AmberSubGroup {
+  fill: "#f9e4a7", strokeColor: darken("#f9e4a7", 14), strokeWidth: 1, borderRadius: 10,
+  padding: 10, gap: 7, fontColor: $DarkSlate, fontSize: 13, labelWeight: bold
+}
+Style @ProductCard {
+  width: 228, height: 58,
+  fill: $SurfaceWhite, strokeColor: $CardBorder, strokeWidth: 1, borderRadius: 8,
+  fontColor: $DarkSlate, subFontColor: $SubText,
+  fontSize: 13.5, subFontSize: 11, labelWeight: bold,
+  textAlign: "left", textVAlign: "middle",
+  iconPosition: "left", iconSize: 26, padding: 10, shadow: true
+}
+Style @GatewayHubCard {
+  base: @ProductCard,
+  width: 228, height: 62, strokeColor: $GcpBlue, strokeWidth: 2
+}
+Style @PolicyPill {
+  width: 236, height: 32,
+  fill: $SurfaceWhite, strokeColor: "#9aa0a6", strokeWidth: 1, borderRadius: 16,
+  fontColor: $DarkSlate, fontSize: 12, labelWeight: bold,
+  textAlign: "left", textVAlign: "middle",
+  iconPosition: "left", iconSize: 16, padding: 10, shadow: true
+}
+
+Zone @QuotaLifecycle {
+  title: "Google Cloud"
+  subtitle: "Where Quotas & Restrictions Hit Across the Notification Lifecycle (5M-Follower Go-Live)"
+  style: @ArchitectureRoot
+  layout: matrix
+  cols: 4
+  areas: ["l1 l2 l3 l4"]
+  columnGap: 54
+
+  Zone @Layer1_Audience {
+    area: "l1"
+    title: "1. Audience Boundary"
+    subtitle: "5M Raw -> 2.5M Active"
+    style: @Layer1Zone
+    layout: column, gap: 14, align: center
+
+    [l1_event: "Streamer Go-Live\n(5M Followers)" | "Webhook Trigger"] {
+      style: @GatewayHubCard, icon: "MediaServices"
+    }
+    [l1_store: "Two-Tier Index &\n30-Day Active Filter" | "Tier 4 (>30d) Excluded"] {
+      style: @ProductCard, icon: "AlloyDB"
+    }
+
+    Zone @L1_Quotas {
+      title: "Topic Limits Bypassed"
+      style: @BlueSubGroup, layout: column, gap: 7, align: center
+      [q1_topics: "Max 2,000 Topics / Device"] { style: @PolicyPill, icon: "ShieldAlert" }
+      [q1_mutate: "3,000 QPS Topic Mutation"] { style: @PolicyPill, icon: "Activity" }
+      [q1_fanout: "200 Active Topic Fan-Outs"] { style: @PolicyPill, icon: "Layers" }
+      [q1_scan: "20k/s Condition Full-Scan"] { style: @PolicyPill, icon: "Search" }
+    }
+  }
+
+  Zone @Layer2_Brain {
+    area: "l2"
+    title: "2. Policy & Presence Brain"
+    subtitle: "2.5M -> 2.2M Mobile Push"
+    style: @Layer2Zone
+    layout: column, gap: 14, align: center
+
+    [l2_flap: "5m Flap Gate &\nActive-Session Split" | "300k Online -> WS Toast"] {
+      style: @GatewayHubCard, icon: "Memorystore"
+    }
+    [l2_shaper: "Tier Classifier &\nPayload Shaper" | "<=1.5KB, 30m TTL, No Key"] {
+      style: @ProductCard, icon: "PubSub"
+    }
+
+    Zone @L2_Quotas {
+      title: "Buffer Traps Neutralized"
+      style: @GreenSubGroup, layout: column, gap: 7, align: center
+      [q2_collapse: "Max 4 Collapse Keys / Dev"] { style: @PolicyPill, icon: "ShieldAlert" }
+      [q2_burst: "20-Burst / 3m Collapsible"] { style: @PolicyPill, icon: "Clock" }
+      [q2_buffer: "100-Msg Offline Buffer Wipe"] { style: @PolicyPill, icon: "Database" }
+      [q2_labels: "100 analyticsLabel / Day"] { style: @PolicyPill, icon: "BarChart3" }
+    }
+  }
+
+  Zone @Layer3_Valve {
+    area: "l3"
+    title: "3. Paced Transport Valve"
+    subtitle: "100% Sent <60s (Storm <180s)"
+    style: @Layer3Zone
+    layout: column, gap: 14, align: center
+
+    [l3_valve: "Cloud Run Burst Fleet\n(500 RPS × max-inst)" | "T1 <15s | T2 <45s | T3 <180s"] {
+      style: @GatewayHubCard, icon: "CloudRun"
+    }
+    [l3_pool: "Short-Lived HTTP/2\n& Direct APNs (<3m)" | "0 Idle/GOAWAY Complexity"] {
+      style: @ProductCard, icon: "CloudLoadBalancing"
+    }
+
+    Zone @L3_Quotas {
+      title: "API Edge & HTTP/2 Limits"
+      style: @PeachSubGroup, layout: column, gap: 7, align: center
+      [q3_quota: "600k/min (10k QPS) Edge"] { style: @PolicyPill, icon: "Activity" }
+      [q3_dryrun: "validate_only 1:1 Debit"] { style: @PolicyPill, icon: "ShieldCheck" }
+      [q3_streams: "100 Streams / HTTP/2 Conn"] { style: @PolicyPill, icon: "Networking" }
+      [q3_goaway: "1-Hr LB TCP Reset & PING"] { style: @PolicyPill, icon: "Clock" }
+    }
+  }
+
+  Zone @Layer4_Device {
+    area: "l4"
+    title: "4. Mobile OS & Hygiene"
+    subtitle: "Device Tray & 4xx Feedback"
+    style: @Layer4Zone
+    layout: column, gap: 14, align: center
+
+    [l4_render: "CDN Rich Render &\nCross-Device Dismiss" | "0 Origin Wakeup RPCs"] {
+      style: @GatewayHubCard, icon: "Smartphone"
+    }
+    [l4_pruner: "Async Dead-Token\nPruner (404 / 400)" | "Keeps 4xx Rate < 1%"] {
+      style: @ProductCard, icon: "PubSub"
+    }
+
+    Zone @L4_Quotas {
+      title: "OS & Governance Rules"
+      style: @AmberSubGroup, layout: column, gap: 7, align: center
+      [q4_devrate: "240 Msgs/Min Device Cap"] { style: @PolicyPill, icon: "Smartphone" }
+      [q4_demote: "Android 7d Priority Rule"] { style: @PolicyPill, icon: "ShieldCheck" }
+      [q4_apns: "iOS Prio 10 vs 5 Silent"] { style: @PolicyPill, icon: "Key" }
+      [q4_gate: "<5% 4xx Quota Ramp Gate"] { style: @PolicyPill, icon: "PieChart" }
+    }
+  }
+}
+
+[l1_event] --> [l1_store] {
+  color: $GcpBlue, strokeWidth: 2, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[l1_store] --> [l2_flap] {
+  color: $GcpBlue, strokeWidth: 2, sourceAnchor: "right", targetAnchor: "left", curve: "step",
+  label: "2.5M Active", sequenceBadge: "1", badgeFill: $GcpBlue, badgeFontColor: $SurfaceWhite
+}
+[l2_flap] --> [l2_shaper] {
+  color: $GcpGreen, strokeWidth: 2, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[l2_shaper] --> [l3_valve] {
+  color: $GcpGreen, strokeWidth: 2, sourceAnchor: "right", targetAnchor: "left", curve: "step",
+  label: "2.2M Push", sequenceBadge: "2", badgeFill: $GcpGreen, badgeFontColor: $SurfaceWhite
+}
+[l3_valve] --> [l3_pool] {
+  color: $CoralRed, strokeWidth: 2, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[l3_pool] --> [l4_render] {
+  color: $CoralRed, strokeWidth: 2, sourceAnchor: "right", targetAnchor: "left", curve: "step",
+  label: "Paced HTTP/2", sequenceBadge: "3", badgeFill: $CoralRed, badgeFontColor: $SurfaceWhite
+}
+[l4_render] --> [l4_pruner] {
+  color: $BusStroke, strokeWidth: 1.8, dashed: true, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[Layer4_Device] -.-> [Layer1_Audience] {
+  color: $EmeraldTeal, strokeWidth: 2, dashed: true, sourceAnchor: "bottom", targetAnchor: "bottom", curve: "step",
+  label: "Prune 404/400", sequenceBadge: "4", badgeFill: $EmeraldTeal, badgeFontColor: $SurfaceWhite
+}

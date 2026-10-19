@@ -1,0 +1,347 @@
+renderOrder: nodes-first
+direction: right
+
+const GcpBlue = "#1a73e8"
+const GcpGreen = "#1e8e3e"
+const EmeraldTeal = "#0d9488"
+const CoralRed = "#d93025"
+const AmberGold = "#d97706"
+const PurpleAccent = "#9334e6"
+const DarkSlate = "#202124"
+const SubText = "#5f6368"
+const CardBorder = "#dadce0"
+const BusStroke = "#334155"
+const SurfaceWhite = "#ffffff"
+
+Style @Ghost {
+  fill: transparent, strokeWidth: 0, fontColor: transparent, padding: 0
+}
+Style @ArchitectureRoot {
+  fill: "#f8fafd", strokeColor: "#c2d7f5", strokeWidth: 1.5, borderRadius: 16,
+  padding: 22, gap: 18, fontColor: "#3c4043", fontSize: 22, labelWeight: bold,
+  icon: "GoogleCloud", iconSize: 28
+}
+Style @RealIngestZone {
+  fill: "#e8f0fe", strokeColor: "#8ab4f8", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 12, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold
+}
+Style @RealFanoutZone {
+  fill: "#e6f4ea", strokeColor: "#81c995", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 12, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold
+}
+Style @RealValveZone {
+  fill: "#fce8e6", strokeColor: "#f6aea9", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 12, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold
+}
+Style @RealAuditZone {
+  fill: "#e0f2fe", strokeColor: "#7dd3fc", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 12, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold
+}
+Style @MockZone {
+  fill: "#fef7e0", strokeColor: "#fde293", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 12, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold,
+  dashed: true
+}
+Style @HybridEdgeZone {
+  fill: "#f3e8fd", strokeColor: "#c084fc", strokeWidth: 2, borderRadius: 12,
+  padding: 14, gap: 12, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold
+}
+Style @DownstreamTwinZone {
+  fill: "#ccfbf1", strokeColor: "#5eead4", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 12, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold,
+  dashed: true
+}
+Style @BlueSubGroup {
+  fill: "#d2e3fc", strokeColor: darken("#d2e3fc", 14), strokeWidth: 1, borderRadius: 10,
+  padding: 10, gap: 6, fontColor: $DarkSlate, fontSize: 12.5, labelWeight: bold
+}
+Style @GreenSubGroup {
+  fill: "#ceead6", strokeColor: darken("#ceead6", 14), strokeWidth: 1, borderRadius: 10,
+  padding: 10, gap: 6, fontColor: $DarkSlate, fontSize: 12.5, labelWeight: bold
+}
+Style @PeachSubGroup {
+  fill: "#f8d3c8", strokeColor: darken("#f8d3c8", 12), strokeWidth: 1, borderRadius: 10,
+  padding: 10, gap: 6, fontColor: $DarkSlate, fontSize: 12.5, labelWeight: bold
+}
+Style @SkySubGroup {
+  fill: "#bae6fd", strokeColor: darken("#bae6fd", 14), strokeWidth: 1, borderRadius: 10,
+  padding: 10, gap: 6, fontColor: $DarkSlate, fontSize: 12.5, labelWeight: bold
+}
+Style @AmberSubGroup {
+  fill: "#f9e4a7", strokeColor: darken("#f9e4a7", 14), strokeWidth: 1, borderRadius: 10,
+  padding: 10, gap: 6, fontColor: $DarkSlate, fontSize: 12.5, labelWeight: bold
+}
+Style @PurpleSubGroup {
+  fill: "#e9d5ff", strokeColor: darken("#e9d5ff", 14), strokeWidth: 1, borderRadius: 10,
+  padding: 10, gap: 6, fontColor: $DarkSlate, fontSize: 12.5, labelWeight: bold
+}
+Style @TealSubGroup {
+  fill: "#99f6e4", strokeColor: darken("#99f6e4", 14), strokeWidth: 1, borderRadius: 10,
+  padding: 10, gap: 6, fontColor: $DarkSlate, fontSize: 12.5, labelWeight: bold
+}
+Style @ProductCard {
+  width: 248, height: 58,
+  fill: $SurfaceWhite, strokeColor: $CardBorder, strokeWidth: 1, borderRadius: 8,
+  fontColor: $DarkSlate, subFontColor: $SubText,
+  fontSize: 13.5, subFontSize: 11, labelWeight: bold,
+  textAlign: "left", textVAlign: "middle",
+  iconPosition: "left", iconSize: 26, padding: 10, shadow: true
+}
+Style @GatewayHubCard {
+  base: @ProductCard,
+  width: 248, height: 62, strokeColor: $GcpBlue, strokeWidth: 2
+}
+Style @LiveFirebaseCard {
+  base: @ProductCard,
+  width: 248, height: 62, strokeColor: $CoralRed, strokeWidth: 2
+}
+Style @PolicyPill {
+  width: 248, height: 30,
+  fill: $SurfaceWhite, strokeColor: "#9aa0a6", strokeWidth: 1, borderRadius: 15,
+  fontColor: $DarkSlate, fontSize: 12, labelWeight: bold,
+  textAlign: "left", textVAlign: "middle",
+  iconPosition: "left", iconSize: 15, padding: 10, shadow: true
+}
+
+Zone @PilotSpikeHarness {
+  title: "Google Cloud"
+  subtitle: "55M-Follower 10-Streamer Storm Pilot Spike: Real Go Pipeline, Live Firebase Sandbox Shard & 15M-User Downstream Device Twin"
+  style: @ArchitectureRoot
+  layout: matrix
+  cols: 4
+  areas: [
+    "real1 real2 real3 real4",
+    "mock1 mock2 edge3 twin4"
+  ]
+  columnGap: 64
+  rowGap: 68
+
+  Zone @Real1_Ingest {
+    area: "real1"
+    title: "1. REAL: Ingest & Flap Gate"
+    subtitle: "Layer 2 Go Control Plane"
+    style: @RealIngestZone
+    layout: column, gap: 14, align: center
+
+    [r1_webhook: "10-Streamer Webhook\nIngest & 5m Flap Gate" | "t=0 Live | Drops +2s/+8s Flap"] {
+      style: @GatewayHubCard, icon: "Memorystore"
+    }
+    [r1_shaper: "64-Bucket Partition\nCoordinator" | "Spawns 10x64 = 640 Shard Tasks"] {
+      style: @ProductCard, icon: "ComputeEngine"
+    }
+
+    Zone @R1_Invariants {
+      title: "Verified Real Invariants"
+      style: @BlueSubGroup, layout: column, gap: 6, align: center
+      [p_r1_a: "SET NX EX 300s Dedup Gate"] { style: @PolicyPill, icon: "ShieldCheck" }
+      [p_r1_b: "<= 1.5KB Self-Sufficient JSON"] { style: @PolicyPill, icon: "Activity" }
+    }
+  }
+
+  Zone @Real2_Fanout {
+    area: "real2"
+    title: "2. REAL: Fan-Out & Caps"
+    subtitle: "55M Raw -> 19.8M Pushed"
+    style: @RealFanoutZone
+    layout: column, gap: 14, align: center
+
+    [r2_scanner: "30d Dormancy & Online\nPresence Filter" | "55M -> 27.5M Act -> 24.2M Offl"] {
+      style: @GatewayHubCard, icon: "AlloyDB"
+    }
+    [r2_freqcap: "Freq Cap (<=5/m) &\n500-Token Batcher" | "Cuts 4.4M Overlap -> 19.8M Push"] {
+      style: @ProductCard, icon: "PubSub"
+    }
+
+    Zone @R2_Invariants {
+      title: "Verified Real Invariants"
+      style: @GreenSubGroup, layout: column, gap: 6, align: center
+      [p_r2_a: "VIP-First Overlap Suppression"] { style: @PolicyPill, icon: "Layers" }
+      [p_r2_b: "Zero Collapse Key / 30m TTL"] { style: @PolicyPill, icon: "Clock" }
+    }
+  }
+
+  Zone @Real3_Valve {
+    area: "real3"
+    title: "3. REAL: Burst Valve & Pruner"
+    subtitle: "Layer 3 HTTP/2 + Layer 4 Hygiene"
+    style: @RealValveZone
+    layout: column, gap: 14, align: center
+
+    [r3_workers: "Cloud Run Burst Pool\n(Go Native & Gorush)" | "Concurrency=1 | 50-Stream Sem"] {
+      style: @GatewayHubCard, icon: "CloudRun"
+    }
+    [r3_pruner: "Async 404 Dead-Token\nPruner & 3.5% 4xx CB" | "Prunes Live 404s | Sheds Tier 3"] {
+      style: @ProductCard, icon: "CloudMonitoring"
+    }
+
+    Zone @R3_Invariants {
+      title: "Verified Real Invariants"
+      style: @PeachSubGroup, layout: column, gap: 6, align: center
+      [p_r3_a: "T1 <15s | T2 <45s | T3 <180s"] { style: @PolicyPill, icon: "Activity" }
+      [p_r3_b: "<=50 Streams/Conn (<100 Cap)"] { style: @PolicyPill, icon: "Networking" }
+    }
+  }
+
+  Zone @Real4_CanaryAudit {
+    area: "real4"
+    title: "4. REAL: Live Canary & Audit"
+    subtitle: "E2E Device Canary + A/B Report"
+    style: @RealAuditZone
+    layout: column, gap: 14, align: center
+
+    [r4_canary: "Live Sandbox Canary\n(WebPush & Android)" | "validate_only: false Real E2E"] {
+      style: @GatewayHubCard, icon: "Smartphone"
+    }
+    [r4_auditor: "A/B Gotcha & SLA\nTelemetry Verifier" | "Naive vs Target Storm Audit"] {
+      style: @ProductCard, icon: "BigQuery"
+    }
+
+    Zone @R4_Invariants {
+      title: "Verified Post-FCM Invariants"
+      style: @SkySubGroup, layout: column, gap: 6, align: center
+      [p_r4_a: "0 Collapse Evict / 0 Wipes"] { style: @PolicyPill, icon: "ShieldCheck" }
+      [p_r4_b: "0 Prio Demote (<=5/min)"] { style: @PolicyPill, icon: "CheckCircle2" }
+    }
+  }
+
+  Zone @Mock1_Dataset {
+    area: "mock1"
+    title: "5. MOCK: 55M-Edge Store"
+    subtitle: "Synthetic Storm & 64-Shard DB"
+    style: @MockZone
+    layout: column, gap: 14, align: center
+
+    [m1_storm: "10-Streamer Storm Gen\n(1M + 2M + ... + 10M)" | "55M Edges + OBS Flap Retries"] {
+      style: @ProductCard, icon: "MediaServices"
+    }
+    [m1_db: "64-Shard MMap Store\n(15M Users, 55M Follows)" | "2-5ms Page Scan | 50% >30d"] {
+      style: @ProductCard, icon: "Databases"
+    }
+
+    Zone @M1_Fidelity {
+      title: "Emulated Constraints"
+      style: @AmberSubGroup, layout: column, gap: 6, align: center
+      [p_m1_a: "Zipf Multi-Streamer Overlap"] { style: @PolicyPill, icon: "Users" }
+      [p_m1_b: "50/50 Android FCM & iOS APNs"] { style: @PolicyPill, icon: "Smartphone" }
+    }
+  }
+
+  Zone @Mock2_Runtime {
+    area: "mock2"
+    title: "6. MOCK: Presence & Queues"
+    subtitle: "Bitmap, OAuth & Autoscaler"
+    style: @MockZone
+    layout: column, gap: 14, align: center
+
+    [m2_bitmap: "Roaring Presence Bitmap\n& Local Metadata OAuth" | "12% Online (3.3M WS) | <2ms JWT"] {
+      style: @ProductCard, icon: "IAM"
+    }
+    [m2_pubsub: "Priority Pub/Sub & Cloud\nRun Cold-Start Emulation" | "T1 Warm (2 Inst) | 2-5s Ramp"] {
+      style: @ProductCard, icon: "Eventarc"
+    }
+
+    Zone @M2_Fidelity {
+      title: "Emulated Constraints"
+      style: @AmberSubGroup, layout: column, gap: 6, align: center
+      [p_m2_a: "Strict T1 > T2 > T3 Preemption"] { style: @PolicyPill, icon: "Layers" }
+      [p_m2_b: "500-Token Push Batch Envelope"] { style: @PolicyPill, icon: "Server" }
+    }
+  }
+
+  Zone @Edge3_Hybrid {
+    area: "edge3"
+    title: "7. HYBRID: Live FCM + Shards"
+    subtitle: "Real fcm.googleapis.com + Emulator"
+    style: @HybridEdgeZone
+    layout: column, gap: 14, align: center
+
+    [e3_live_fcm: "LIVE Firebase Sandbox\nfcm.googleapis.com @ 10k" | "validate_only + 404/400/429"] {
+      style: @LiveFirebaseCard, icon: "CloudLoadBalancing"
+    }
+    [e3_emulator: "Parallel Shards 1..K &\nDirect APNs HTTP/2 Edge" | "MaxStreams=100 | 60s Quota Cap"] {
+      style: @ProductCard, icon: "SecurityCommandCenter"
+    }
+
+    Zone @E3_Fidelity {
+      title: "Live + Emulated Edge Gates"
+      style: @PurpleSubGroup, layout: column, gap: 6, align: center
+      [p_e3_a: "Real 600k/m Quota & Lookup"] { style: @PolicyPill, icon: "Flame" }
+      [p_e3_b: "Real 404/400/429 + H2 GOAWAY"] { style: @PolicyPill, icon: "ShieldAlert" }
+    }
+  }
+
+  Zone @Twin4_Downstream {
+    area: "twin4"
+    title: "8. TWIN: 15M Device Twin"
+    subtitle: "4 Post-FCM Downstream Gotchas"
+    style: @DownstreamTwinZone
+    layout: column, gap: 14, align: center
+
+    [t4_twin: "15M-User Stateful\nDownstream Device Twin" | "A/B: Naive vs Target Mode"] {
+      style: @GatewayHubCard, icon: "Android"
+    }
+    [t4_gotchas: "Post-FCM Client Gate\n(GMS Core & APNs Rules)" | "4-Key | 20-Burst | 100-Wipe"] {
+      style: @ProductCard, icon: "Bell"
+    }
+
+    Zone @T4_Fidelity {
+      title: "4 Validated Downstream Gotchas"
+      style: @TealSubGroup, layout: column, gap: 6, align: center
+      [p_t4_a: "#1 4-Key Evict & #2 20-Burst"] { style: @PolicyPill, icon: "AlertTriangle" }
+      [p_t4_b: "#3 100-Msg Wipe & #4 Demote"] { style: @PolicyPill, icon: "BatteryWarning" }
+    }
+  }
+}
+
+[Mock1_Dataset] --> [Real1_Ingest] {
+  color: $AmberGold, strokeWidth: 2, sourceAnchor: "top", targetAnchor: "bottom", curve: "step",
+  label: "10 Go-Lives", sequenceBadge: "1", badgeFill: $AmberGold, badgeFontColor: $SurfaceWhite
+}
+[r1_webhook] --> [r1_shaper] {
+  color: $GcpBlue, strokeWidth: 2, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[r1_shaper] --> [r2_scanner] {
+  color: $GcpBlue, strokeWidth: 2, sourceAnchor: "right", targetAnchor: "left", curve: "step",
+  label: "640 Shards", sequenceBadge: "2", badgeFill: $GcpBlue, badgeFontColor: $SurfaceWhite
+}
+[r2_scanner] --> [r2_freqcap] {
+  color: $GcpGreen, strokeWidth: 2, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[Mock2_Runtime] <--> [Real2_Fanout] {
+  color: $EmeraldTeal, strokeWidth: 2, dashed: true, sourceAnchor: "top", targetAnchor: "bottom", curve: "step",
+  label: "55M + Bitmap", sequenceBadge: "3", badgeFill: $EmeraldTeal, badgeFontColor: $SurfaceWhite
+}
+[r2_freqcap] --> [r3_workers] {
+  color: $GcpGreen, strokeWidth: 2, sourceAnchor: "right", targetAnchor: "left", curve: "step",
+  label: "39.6k Batches", sequenceBadge: "4", badgeFill: $GcpGreen, badgeFontColor: $SurfaceWhite
+}
+[r3_workers] --> [r3_pruner] {
+  color: $BusStroke, strokeWidth: 2, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[Real3_Valve] <--> [Edge3_Hybrid] {
+  color: $CoralRed, strokeWidth: 2, sourceAnchor: "bottom", targetAnchor: "top", curve: "step",
+  label: "Live + H2", sequenceBadge: "5", badgeFill: $CoralRed, badgeFontColor: $SurfaceWhite
+}
+[Edge3_Hybrid] --> [Twin4_Downstream] {
+  color: $PurpleAccent, strokeWidth: 2, sourceAnchor: "right", targetAnchor: "left", curve: "step",
+  label: "200 OK Pushes", sequenceBadge: "6", badgeFill: $PurpleAccent, badgeFontColor: $SurfaceWhite
+}
+[Twin4_Downstream] --> [Real4_CanaryAudit] {
+  color: $EmeraldTeal, strokeWidth: 2, sourceAnchor: "top", targetAnchor: "bottom", curve: "step",
+  label: "Gotcha Audit", sequenceBadge: "7", badgeFill: $EmeraldTeal, badgeFontColor: $SurfaceWhite
+}
+[r4_canary] --> [r4_auditor] {
+  color: $GcpBlue, strokeWidth: 2, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[m1_storm] --> [m1_db] {
+  color: $AmberGold, strokeWidth: 1.8, dashed: true, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[m2_bitmap] --> [m2_pubsub] {
+  color: $AmberGold, strokeWidth: 1.8, dashed: true, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[e3_live_fcm] --> [e3_emulator] {
+  color: $PurpleAccent, strokeWidth: 2, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[t4_twin] --> [t4_gotchas] {
+  color: $EmeraldTeal, strokeWidth: 2, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
