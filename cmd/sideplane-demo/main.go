@@ -55,9 +55,11 @@ func NewRouter(cfg ServerConfig) http.Handler {
 	mux := http.NewServeMux()
 	uiHandler := ui.Handler()
 
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+	healthHandler := func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	})
+	}
+	mux.HandleFunc("GET /healthz", healthHandler)
+	mux.HandleFunc("GET /api/health", healthHandler)
 
 	mux.HandleFunc("GET /api/simulate", func(w http.ResponseWriter, r *http.Request) {
 		followers := cfg.DefaultFollowers

@@ -60,15 +60,21 @@ func TestHTTPEndpointsAndServerPinnedProbeGuard(t *testing.T) {
 		ProbeLimiter:        egress.NewProbeRateLimiter(6),
 	})
 
-	// 1. /healthz
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("GET /healthz = %d", rec.Code)
+	// 1. /healthz and /api/health
+	for _, path := range []string{"/healthz", "/api/health"} {
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d", path, rec.Code)
+		}
+		var body map[string]string
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || body["status"] != "ok" {
+			t.Fatalf("GET %s unexpected body: %s (err=%v)", path, rec.Body.String(), err)
+		}
 	}
 
 	// 2. /
-	rec = httptest.NewRecorder()
+	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "GCP SIDE-PLANE") {
 		t.Fatalf("GET / failed: code=%d", rec.Code)
