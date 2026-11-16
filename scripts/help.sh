@@ -4,10 +4,13 @@ set -euo pipefail
 cat << 'EOF'
 push-notifications build & verification targets:
 
-  make build        Build platform binaries and verify dependencies
-  make test         Execute verification and test suite
-  make run          Launch platform service in local development mode
-  make clean        Clean build artifacts, temporary files, and caches
-  make tidy-check   Verify repository tidiness and structure standards
+  make build        Compile bin/sideplane-demo binary
+  make test         Run tidiness, diagram/doc hygiene, and Go race test suite
+  make run          Run CLI side-plane benchmark (--mode=cli)
+  make clean        Clean build artifacts, temporary files, and Go caches
+  make tidy-check   Verify repository tidiness, script hygiene, and README sync
   make help         Display this target overview
+
+Cloud Run sandbox deployment:
+  ./scripts/deploy-cloudrun.sh   Deploy containerized server (--mode=server) to kunal-scratch
 EOF

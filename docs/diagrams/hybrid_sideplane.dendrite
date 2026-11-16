@@ -1,0 +1,192 @@
+renderOrder: nodes-first
+direction: right
+
+const GcpBlue = "#1a73e8"
+const GcpGreen = "#1e8e3e"
+const EmeraldTeal = "#0d9488"
+const CoralRed = "#d93025"
+const DarkSlate = "#202124"
+const SubText = "#5f6368"
+const CardBorder = "#dadce0"
+const BusStroke = "#334155"
+const SurfaceWhite = "#ffffff"
+
+Style @ArchitectureRoot {
+  fill: "#f8fafd", strokeColor: "#c2d7f5", strokeWidth: 1.5, borderRadius: 16,
+  padding: 32, gap: 18, fontColor: "#3c4043", fontSize: 22, labelWeight: bold
+}
+Style @ZoneBlue {
+  fill: "#e8f0fe", strokeColor: "#8ab4f8", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 14, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold
+}
+Style @ZoneGreen {
+  fill: "#e6f4ea", strokeColor: "#81c995", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 14, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold
+}
+Style @ZoneCoral {
+  fill: "#fce8e6", strokeColor: "#f6aea9", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 14, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold
+}
+Style @ZoneAmber {
+  fill: "#fef7e0", strokeColor: "#fde293", strokeWidth: 1.5, borderRadius: 12,
+  padding: 14, gap: 14, fontColor: $DarkSlate, fontSize: 15, labelWeight: bold
+}
+Style @BlueSubGroup {
+  fill: "#d2e3fc", strokeColor: darken("#d2e3fc", 14), strokeWidth: 1, borderRadius: 10,
+  padding: 10, gap: 7, fontColor: $DarkSlate, fontSize: 13, labelWeight: bold
+}
+Style @PeachSubGroup {
+  fill: "#f8d3c8", strokeColor: darken("#f8d3c8", 12), strokeWidth: 1, borderRadius: 10,
+  padding: 10, gap: 7, fontColor: $DarkSlate, fontSize: 13, labelWeight: bold
+}
+Style @ProductCard {
+  width: 232, height: 60,
+  fill: $SurfaceWhite, strokeColor: $CardBorder, strokeWidth: 1, borderRadius: 8,
+  fontColor: $DarkSlate, subFontColor: $SubText,
+  fontSize: 13.5, subFontSize: 11, labelWeight: bold,
+  textAlign: "left", textVAlign: "middle",
+  iconPosition: "left", iconSize: 26, padding: 10, shadow: true
+}
+Style @GatewayHubCard {
+  base: @ProductCard,
+  width: 232, height: 62, strokeColor: $GcpBlue, strokeWidth: 2
+}
+Style @PolicyPill {
+  width: 236, height: 32,
+  fill: $SurfaceWhite, strokeColor: "#9aa0a6", strokeWidth: 1, borderRadius: 16,
+  fontColor: $DarkSlate, fontSize: 12, labelWeight: bold,
+  textAlign: "left", textVAlign: "middle",
+  iconPosition: "left", iconSize: 16, padding: 10, shadow: true
+}
+
+Zone @HybridSidePlane {
+  title: "Hybrid Notification & Quota Side-Plane"
+  subtitle: "Zero-DB-Migration 6-Module Filtering, Direct APNs Offload & 5.5m AutoQuota Pacer"
+  style: @ArchitectureRoot
+  layout: matrix
+  cols: 4
+  areas: ["origin hygiene shaper egress"]
+  columnGap: 58
+
+  Zone @Col1_Origin {
+    area: "origin"
+    title: "1. Multi-Cell Origin"
+    subtitle: "64-Shard Store & WS Sync"
+    style: @ZoneBlue
+    layout: column, gap: 14, align: center
+
+    [origin_shards: "64-Shard Follower\n& Device Store" | "Go-Live Stream Event"] {
+      style: @GatewayHubCard, icon: "AlloyDB"
+    }
+    [mod3_bitmap: "Mod 3: Presence\nBitmap (< 500 KB)" | "2M Online -> WS Toast"] {
+      style: @ProductCard, icon: "Memorystore"
+    }
+
+    Zone @BaselineTrap {
+      title: "Baseline 568.8k/m Wall"
+      style: @BlueSubGroup, layout: column, gap: 7, align: center
+      [b_strand: "5% Multi-Cell Stranding"] { style: @PolicyPill, icon: "Layers" }
+      [b_404: "5.2% Dormant 404 Burn"] { style: @PolicyPill, icon: "ShieldAlert" }
+      [b_gate: "2-3m Spike < 5m Min 80%"] { style: @PolicyPill, icon: "Clock" }
+    }
+  }
+
+  Zone @Col2_Hygiene {
+    area: "hygiene"
+    title: "2. Audience Hygiene"
+    subtitle: "Google Cloud Side-Plane"
+    style: @ZoneGreen
+    layout: column, gap: 14, align: center
+
+    [mod1_dormancy: "Mod 1: Dormancy &\nOS Permission Gate" | "<=30d Active & Opt-In"] {
+      style: @GatewayHubCard, icon: "IAM"
+    }
+    [mod4_freqcap: "Mod 4: VIP-First\nFrequency Cap" | "<=5/min & 5m Flap Gate"] {
+      style: @ProductCard, icon: "Memorystore"
+    }
+    [mod6_inbox: "Mod 6: In-App Inbox\n& Cross-Device Sync" | "Tap -> apns-priority: 5"] {
+      style: @ProductCard, icon: "Firestore"
+    }
+  }
+
+  Zone @Col3_Shaper {
+    area: "shaper"
+    title: "3. Priority & Pacer"
+    subtitle: "Cloud Run Burst Control"
+    style: @ZoneCoral
+    layout: column, gap: 14, align: center
+
+    [mod5_lanes: "Mod 5A: 3-Tier\nPriority Preemption" | "VIP <8s | 7d <45s | 30d"] {
+      style: @GatewayHubCard, icon: "PubSub"
+    }
+    [mod5_pacer: "Mod 5B: 5.5m Plateau\nQuota Pacer" | "520k/m (86.7% >= 80%)"] {
+      style: @ProductCard, icon: "CloudRun"
+    }
+
+    Zone @QuotaGate {
+      title: "AutoQuota Unlocker"
+      style: @PeachSubGroup, layout: column, gap: 7, align: center
+      [q_blocks: "3/3 Qualifying 5m Blocks"] { style: @PolicyPill, icon: "Activity" }
+      [q_burn: "-78% Standard FCM Burn"] { style: @PolicyPill, icon: "BarChart3" }
+      [q_zero429: "Zero 429s & <1% 4xx"] { style: @PolicyPill, icon: "ShieldCheck" }
+    }
+  }
+
+  Zone @Col4_Egress {
+    area: "egress"
+    title: "4. Dual-Path Egress"
+    subtitle: "50-Stream HTTP/2 & Hygiene"
+    style: @ZoneAmber
+    layout: column, gap: 14, align: center
+
+    [mod2_apns: "Mod 2A: Direct APNs\nHTTP/2 Dispatcher" | ".p8 ES256 (0 FCM Debit)"] {
+      style: @GatewayHubCard, icon: "Key"
+    }
+    [mod2_fcm: "Mod 2B: Single-Region\nFCM v1 Burst Pipe" | "50 Streams / Socket"] {
+      style: @ProductCard, icon: "CloudRun"
+    }
+    [fcm_hygiene: "Field-Aware Pruner\n& 3.5% Breaker" | "404/410 Only | Sandbox"] {
+      style: @ProductCard, icon: "CloudMonitoring"
+    }
+  }
+}
+
+[origin_shards] --> [mod3_bitmap] {
+  color: $GcpBlue, strokeWidth: 2, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[mod3_bitmap] --> [mod1_dormancy] {
+  color: $GcpBlue, strokeWidth: 2, sourceAnchor: "right", targetAnchor: "left", curve: "step",
+  label: "Offline Only", sequenceBadge: "1", badgeFill: $GcpBlue, badgeFontColor: $SurfaceWhite
+}
+[mod1_dormancy] --> [mod4_freqcap] {
+  color: $GcpGreen, strokeWidth: 2, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[mod4_freqcap] --> [mod6_inbox] {
+  color: $EmeraldTeal, strokeWidth: 1.8, dashed: true, sourceAnchor: "bottom", targetAnchor: "top", curve: "step",
+  label: "Inbox & Sync"
+}
+[mod4_freqcap] --> [mod5_lanes] {
+  color: $GcpGreen, strokeWidth: 2, sourceAnchor: "right", targetAnchor: "left", curve: "step",
+  label: "-78% Volume", sequenceBadge: "2", badgeFill: $GcpGreen, badgeFontColor: $SurfaceWhite
+}
+[mod5_lanes] --> [mod5_pacer] {
+  color: $CoralRed, strokeWidth: 2, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[mod5_pacer] --> [QuotaGate] {
+  color: $CoralRed, strokeWidth: 1.8, dashed: true, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[mod5_pacer] --> [mod2_apns] {
+  color: $EmeraldTeal, strokeWidth: 2, sourceAnchor: "right", targetAnchor: "left", curve: "step",
+  label: "iOS Direct", sequenceBadge: "3", badgeFill: $EmeraldTeal, badgeFontColor: $SurfaceWhite
+}
+[mod5_pacer] --> [mod2_fcm] {
+  color: $CoralRed, strokeWidth: 2, sourceAnchor: "right", targetAnchor: "left", curve: "step",
+  label: "Android/Web", sequenceBadge: "4", badgeFill: $CoralRed, badgeFontColor: $SurfaceWhite
+}
+[mod2_fcm] --> [fcm_hygiene] {
+  color: $BusStroke, strokeWidth: 1.8, sourceAnchor: "bottom", targetAnchor: "top", curve: "step"
+}
+[Col4_Egress] -.-> [Col1_Origin] {
+  color: $EmeraldTeal, strokeWidth: 2, dashed: true, sourceAnchor: "bottom", targetAnchor: "bottom", curve: "step",
+  label: "Prune 404/410", sequenceBadge: "5", badgeFill: $EmeraldTeal, badgeFontColor: $SurfaceWhite
+}

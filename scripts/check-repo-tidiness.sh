@@ -6,27 +6,35 @@ echo "Running repository tidiness check..."
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# 1. Verify Makefile recipes are strictly single-line @./scripts/<target>.sh
+# 1. Verify Makefile exists and contains zero inline logic
 if [[ ! -f "Makefile" ]]; then
   echo "ERROR: Makefile not found at repository root" >&2
   exit 1
 fi
 
-# Check for banned inline logic in Makefile
 if grep -E '(\bif\b|\bfor\b|&&|;|\|)' Makefile | grep -v '^\s*#' | grep -v '^\.PHONY' >/dev/null; then
   echo "ERROR: Inline logic detected in Makefile. Makefile must only route to scripts/*.sh" >&2
   exit 1
 fi
 
-# 2. Extract targets and verify their scripts
+# 2. Extract targets, verify 1-line @./scripts/<target>.sh recipes and script hygiene
 TARGETS=$(grep -E '^[a-zA-Z0-9_-]+:' Makefile | cut -d: -f1)
 
 for TARGET in $TARGETS; do
+  EXPECTED_RECIPE=$'\t'"@./scripts/${TARGET}.sh"
+  RECIPE_LINE=$(awk -v tgt="^${TARGET}:" '$0 ~ tgt {getline; print; exit}' Makefile)
+  if [[ "$RECIPE_LINE" != "$EXPECTED_RECIPE" ]]; then
+    echo "ERROR: Target '$TARGET' recipe must be exactly '@./scripts/${TARGET}.sh' (got: '$RECIPE_LINE')" >&2
+    exit 1
+  fi
   SCRIPT="scripts/${TARGET}.sh"
   if [[ ! -f "$SCRIPT" ]]; then
     echo "ERROR: Target '$TARGET' does not have corresponding script '$SCRIPT'" >&2
     exit 1
   fi
+done
+
+for SCRIPT in scripts/*.sh; do
   if [[ ! -x "$SCRIPT" ]]; then
     echo "ERROR: Script '$SCRIPT' is not executable (missing chmod +x)" >&2
     exit 1
