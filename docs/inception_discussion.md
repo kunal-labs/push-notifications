@@ -75,15 +75,16 @@ The platform architecture decouples audience segmentation and payload shaping fr
 - **Atomic Frequency Capping**: Per-user sliding-window limiter enforces $\le 5\text{ pushes/min}$ (prioritizing Tier 1 VIP streams).
 - **Stream-Flap Debouncing**: 5-minute server-side gate suppresses rapid reconnect cycles caused by streamer OBS resets.
 - **Payload Shaper**: Constructs self-sufficient payloads ($\le 1.5\text{ KB}$) with stream title, category, and direct thumbnail URLs, omitting Android `collapse_key` and setting `ttl: 1800s`.
+- **Fan-Out Priority Release**: Releases Tier 1 batches first and holds Tier 2 and Tier 3 until higher tiers have nothing left to publish, keeping at most 58 batches in flight (one per egress instance), paced by completion counts.
 
-#### Layer 3: Ephemeral Burst Dispatch Pipeline
-- **Serverless Cloud Run Workers**: Native Go workers deployed with `concurrency = 1` (processing batches of 500 tokens).
-- **HTTP/2 Wire Multiplexing**: 50 concurrent streams per worker multiplexed over exactly 1 TCP/TLS socket per instance.
+#### Layer 3: One Cloud Run Egress Service (Pub/Sub Push)
+- **Single Serverless Egress Service**: Native Go service with `concurrency = 1` (one 500-token mixed-platform batch per request; each batch carries both platforms and sends iOS to Direct APNs alongside the paced FCM sends), `min-instances: 2` (configurable), `max-instances: 58`, `150 QPS` per-instance FCM limiter = `8,700 QPS` fleet cap.
+- **HTTP/2 Wire Multiplexing**: 50 concurrent streams per instance multiplexed over 1 TCP/TLS socket.
 - **Direct APNs Offload**: iOS push traffic offloaded directly to Apple APNs HTTP/2 endpoints, halving FCM project quota consumption and receiving native `400 BadPriorityForPushType` feedback.
 
 #### Layer 4: Response Classifier & Quota Guardian
 - **Field-Aware Parsing**: Structured inspection of `google.rpc.BadRequest` (`fieldViolations`) to deactivate tokens only when `field == "message.token"` or `404 UNREGISTERED`. Payload schema errors (`message.fcm_options.*`) are dropped without pruning user tokens.
-- **Active Quota Pacing**: Declarative Cloud Run `max-instances` dynamically paces burst egress to match quota allocations.
+- **Active Quota Pacing**: Fleet cap = `max-instances` × per-instance limiter on one Cloud Run service fed by Pub/Sub push, with fan-out priority release.
 - **Circuit Breaker**: Trips load-shedding of Tier 3 casual users if upstream gateway 4xx error rates exceed $3.5\%$.
 
 ---
@@ -92,7 +93,7 @@ The platform architecture decouples audience segmentation and payload shaping fr
 
 | Failure Mode / Threat | Root Mechanism | Architectural Defense & Mitigation |
 | :--- | :--- | :--- |
-| **Gateway 429 Throttling** | Rolling token bucket exhaustion at gateway ingress | Declarative `max-instances` pacing, Direct APNs offload for iOS ($50\%$ quota relief), and 64-shard priority queueing. |
+| **Gateway 429 Throttling** | Rolling token bucket exhaustion at gateway ingress | Fleet cap = `max-instances` × per-instance limiter on one Cloud Run service fed by Pub/Sub push, with fan-out priority release, Direct APNs offload for iOS ($50\%$ quota relief), and 64-shard priority queueing. |
 | **Corrupt Token Purge Surge** | Schema bug returning HTTP 400 causing mass token deletion | Layer 4 field-level classifier: only deactivate tokens if `field == "message.token"` or code is `UNREGISTERED` / `410 GONE`. |
 | **4-Collapse-Key Eviction** | 5th unique collapse key evicts prior alerts non-deterministically | Omit `collapse_key` entirely; rely on client NotificationManager channel tags (`channel_id: "live_stream"`). |
 | **20-Burst Collapsible Drop** | Streamer OBS reconnect flap exhausts device token bucket | 5-minute server-side debouncing filter at Layer 2; suppress 100% of reconnect flaps. |
@@ -105,7 +106,7 @@ The platform architecture decouples audience segmentation and payload shaping fr
 ## 4. Technical Stack & Implementation Rationale
 
 - **Runtime & Language**: Native Go (v1.23+) for Layer 3 transport workers and Layer 4 classification, leveraging native `net/http` HTTP/2 multiplexing, low memory footprint ($< 35\text{ MB}$ RSS), and zero-copy JSON parsing.
-- **Hosting & Compute**: Google Cloud Run with declarative concurrency controls, auto-scaling from 0 to hundreds of burst workers in seconds.
+- **Hosting & Compute**: Google Cloud Run with declarative concurrency controls and request-based scaling from a configurable warm minimum to `max-instances`.
 - **Data Persistence**: Horizontally partitioned PostgreSQL / Spanner with 64 shards for `channel_followers` and Redis for sliding-window frequency capping and online WebSocket presence.
 - **Transport Gateways**:
   - Android & Web: FCM HTTP v1 (`fcm.googleapis.com/v1/projects/{project_id}/messages:send`)

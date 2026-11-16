@@ -101,8 +101,13 @@
       grid-template-columns: repeat(4, 1fr);
       gap: 14px;
     }
+    .grid-5 {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+    }
     @media (max-width: 960px) {
-      .grid-2, .grid-4 { grid-template-columns: 1fr; }
+      .grid-2, .grid-4, .grid-5 { grid-template-columns: 1fr; }
     }
     .card {
       background: var(--card);
@@ -298,10 +303,10 @@
 
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">GCP Serverless Side-Plane (Cloud Run + Direct APNs)</h2>
+          <h2 class="card-title">One Cloud Run Service (Pub/Sub Push, Fan-Out Priority Release) + Direct APNs</h2>
           <span class="pill pill-green" id="sp-badge">3/3 Daily AutoQuota Blocks</span>
         </div>
-        <div class="grid-4">
+        <div class="grid-5">
           <div>
             <div class="metric-label">FCM Load Reduction</div>
             <div class="metric-val" style="color:var(--gcp-green)" id="sp-reduction">-78.0%</div>
@@ -309,19 +314,27 @@
           </div>
           <div>
             <div class="metric-label">Sustained Plateau</div>
-            <div class="metric-val" style="color:var(--gcp-blue)" id="sp-plateau">5.92m @ 520k/m</div>
-            <div class="metric-label">86.7% of 600k/min cap</div>
+            <div class="metric-val" style="color:var(--gcp-blue)" id="sp-plateau">6.09m @ 511.9k/m</div>
+            <div class="metric-label" id="sp-plateau-sub">85.3% of 600k/min in prime-time</div>
           </div>
           <div>
             <div class="metric-label">VIP Preemption SLA</div>
-            <div class="metric-val" style="color:var(--gcp-green)" id="sp-vip">7.6s</div>
-            <div class="metric-label" id="sp-active">Active-7d: 25.4s</div>
+            <div class="metric-val" style="color:var(--gcp-green)" id="sp-vip">11.5s</div>
+            <div class="metric-label" id="sp-active">Active-7d: 30.2s</div>
           </div>
           <div>
             <div class="metric-label">Client 4xx / 429s</div>
             <div class="metric-val" style="color:var(--gcp-green)" id="sp-4xx">0.4% / 0</div>
             <div class="metric-label" id="sp-conserved">100% conserved</div>
           </div>
+          <div>
+            <div class="metric-label">Fleet Cap</div>
+            <div class="metric-val" style="color:var(--gcp-blue)" id="sp-fleet">58 &times; 150 QPS = 8.7k QPS</div>
+            <div class="metric-label" id="sp-fleet-sub">87.0% of 600k/min &middot; 2 warm</div>
+          </div>
+        </div>
+        <div class="subtitle" style="margin-top:10px" id="sp-explainer">
+          Layer 2 releases Tier 1 first and holds lower tiers until it drains, keeping at most 58 batches in flight. Each 500-token batch carries both platforms (~250 Android/Web FCM + ~250 iOS); each instance paces FCM at 150 QPS while sending iOS to Direct APNs concurrently (~0.3s assumption) over HTTP/2 (&le; 50 streams). The service scales from its warm minimum (currently 2) to ~58 and back.
         </div>
       </div>
     </section>
@@ -338,7 +351,7 @@
         <span><span class="legend-dot" style="background:#d93025"></span>568.8k/min Theoretical 200 OK Ceiling (5.2% 404 burn)</span>
         <span><span class="legend-dot" style="background:#b06000"></span>Baseline Stranded Goodput (540.4k/min, &gt;5% 4xx disqualified)</span>
         <span><span class="legend-dot" style="background:#188038"></span>480k/min (80%) AutoQuota Sustained 5m Threshold</span>
-        <span><span class="legend-dot" style="background:#1a73e8"></span>Side-Plane Plateau (520k/min for 5.92m, 0.4% 4xx)</span>
+        <span><span class="legend-dot" style="background:#1a73e8"></span><span id="legend-sideplane">Side-Plane Plateau (512k/min for 6.09m, 0.4% 4xx)</span></span>
       </div>
     </section>
 
@@ -383,7 +396,7 @@
     <section class="card" id="creator-table-card">
       <div class="card-header">
         <h2 class="card-title">Staggered Prime-Time Wave Per-Creator SLA Verification (7x 2.0M @ 40s)</h2>
-        <span class="pill pill-green">VIP &lt; 8s | Active-7d &lt; 45s | Worst Tier-3 &lt; 160s</span>
+        <span class="pill pill-green" id="wave-sla-pill">VIP &lt; 15s | Active-7d &lt; 45s | Worst Tier-3: 166.9s</span>
       </div>
       <table>
         <thead>
@@ -411,7 +424,12 @@
     }
 
     async function loadSimulation() {
-      const resp = await fetch('/api/simulate');
+      const params = new URLSearchParams(window.location.search);
+      const query = new URLSearchParams();
+      if (params.has('warm')) query.set('warm', params.get('warm'));
+      if (params.has('followers')) query.set('followers', params.get('followers'));
+      const qs = query.toString();
+      const resp = await fetch('/api/simulate' + (qs ? '?' + qs : ''));
       simData = await resp.json();
       renderSimulation();
     }
@@ -430,6 +448,11 @@
       const sp = isPrime ? simData.prime_time_sideplane : simData.single_sideplane;
       const funnel = isPrime ? simData.prime_time_funnel : simData.single_funnel;
       const series = isPrime ? simData.prime_time_series : simData.single_series;
+      const fleet = simData.fleet || { max_instances: 58, min_instances: 2, per_instance_qps: 150, ios_send_sec: 0.3 };
+      const capQPS = fleet.max_instances * fleet.per_instance_qps;
+      const capPerMin = capQPS * 60;
+      const peak = sp.peak_sustained_per_min;
+      const iosSec = (fleet.ios_send_sec != null ? fleet.ios_send_sec : 0.3).toFixed(1);
 
       document.getElementById('base-badge').textContent = base.qualifying_blocks_daily + '/3 Daily AutoQuota Blocks';
       document.getElementById('base-ceiling').textContent = fmtK(base.theoretical_ceiling_per_min) + '/m';
@@ -438,16 +461,38 @@
       document.getElementById('base-429').textContent = fmtK(base.http_429_rejections) + ' HTTP 429s';
       document.getElementById('base-4xx').textContent = base.client_4xx_pct.toFixed(1) + '%';
 
-      document.getElementById('sp-badge').textContent = isPrime
+      const spBadge = document.getElementById('sp-badge');
+      spBadge.textContent = isPrime
         ? sp.qualifying_blocks_daily + '/3 Daily AutoQuota Blocks'
-        : 'Sub-Minute Burst (< 15s VIP)';
+        : (sp.plateau_seconds < 60 ? 'Sub-Minute Burst (< 15s VIP)' : 'Single-Creator Burst (< 15s VIP)');
+      spBadge.className = 'pill ' + (!isPrime || sp.qualifying_blocks_daily > 0 ? 'pill-green' : 'pill-amber');
       document.getElementById('sp-reduction').textContent = '-' + sp.fcm_reduction_pct.toFixed(1) + '%';
       document.getElementById('sp-fcm-vol').textContent = fmtK(sp.net_fcm_delivered_per_wave) + ' FCM + ' + fmtK(sp.direct_apns_per_wave) + ' APNs';
-      document.getElementById('sp-plateau').textContent = sp.plateau_minutes.toFixed(2) + 'm @ ' + fmtK(sp.peak_sustained_per_min) + '/m';
+      const isBurstNorm = sp.realized_goodput_basis === 'burst_normalised';
+      document.getElementById('sp-plateau').textContent = isPrime
+        ? sp.plateau_minutes.toFixed(2) + 'm @ ' + fmtK(peak) + '/m'
+        : sp.plateau_seconds.toFixed(1) + 's @ ' + fmtK(sp.realized_goodput_per_min) + '/m';
+      document.getElementById('sp-plateau-sub').textContent = isPrime
+        ? (peak / 600000 * 100).toFixed(1) + '% of 600k/min in prime-time'
+        : (sp.realized_goodput_per_min / 600000 * 100).toFixed(1) + '% of 600k/min (' + (isBurstNorm ? 'burst-normalised' : 'peak minute') + ')';
       document.getElementById('sp-vip').textContent = sp.vip_latency_sec.toFixed(1) + 's';
       document.getElementById('sp-active').textContent = 'Active-7d: ' + sp.active_7d_latency_sec.toFixed(1) + 's';
       document.getElementById('sp-4xx').textContent = sp.client_4xx_pct.toFixed(1) + '% / ' + sp.http_429_rejections;
       document.getElementById('sp-conserved').textContent = sp.message_conserved ? '100% conserved' : 'Mismatch';
+      document.getElementById('sp-fleet').textContent = fleet.max_instances + ' \u00d7 ' + fleet.per_instance_qps + ' QPS = ' + fmtK(capQPS) + ' QPS';
+      document.getElementById('sp-fleet-sub').textContent = (capPerMin / 600000 * 100).toFixed(1) + '% of 600k/min \u00b7 ' + fleet.min_instances + ' warm';
+      document.getElementById('sp-explainer').textContent =
+        'Layer 2 releases Tier 1 first and holds lower tiers until it drains, keeping at most ' + fleet.max_instances +
+        ' batches in flight. Each 500-token batch carries both platforms (~250 Android/Web FCM + ~250 iOS); each instance paces FCM at ' +
+        fleet.per_instance_qps + ' QPS while sending iOS to Direct APNs concurrently (~' + iosSec + 's assumption) over HTTP/2 (\u2264 50 streams). The service scales from its warm minimum (currently ' +
+        fleet.min_instances + ') to ~' + fleet.max_instances + ' and back.';
+
+      document.getElementById('legend-sideplane').textContent = isPrime
+        ? 'Side-Plane Plateau (' + Math.round(peak / 1000) + 'k/min for ' + sp.plateau_minutes.toFixed(2) + 'm, ' + sp.client_4xx_pct.toFixed(1) + '% 4xx)'
+        : 'Side-Plane Burst (' + Math.round(sp.realized_goodput_per_min / 1000) + 'k/min ' + (isBurstNorm ? 'burst-normalised ' : '') + 'for ' + sp.plateau_seconds.toFixed(1) + 's, ' + sp.client_4xx_pct.toFixed(1) + '% 4xx)';
+
+      document.getElementById('wave-sla-pill').textContent =
+        'VIP < 15s | Active-7d < 45s | Worst Tier-3: ' + sp.worst_tier3_latency_sec.toFixed(1) + 's';
 
       document.getElementById('chart-title').textContent = isPrime
         ? 'Minute-by-Minute FCM Dispatch Telemetry (Identical 7x 2.0M @ 40s Wave)'

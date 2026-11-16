@@ -52,7 +52,7 @@ Style @AmberSubGroup {
   padding: 10, gap: 7, fontColor: $DarkSlate, fontSize: 13, labelWeight: bold
 }
 Style @ProductCard {
-  width: 228, height: 58,
+  width: 248, height: 68,
   fill: $SurfaceWhite, strokeColor: $CardBorder, strokeWidth: 1, borderRadius: 8,
   fontColor: $DarkSlate, subFontColor: $SubText,
   fontSize: 13.5, subFontSize: 11, labelWeight: bold,
@@ -61,7 +61,7 @@ Style @ProductCard {
 }
 Style @GatewayHubCard {
   base: @ProductCard,
-  width: 228, height: 62, strokeColor: $GcpBlue, strokeWidth: 2
+  width: 248, height: 74, strokeColor: $GcpBlue, strokeWidth: 2
 }
 Style @PolicyPill {
   width: 236, height: 32,
@@ -135,10 +135,10 @@ Zone @QuotaLifecycle {
     style: @Layer3Zone
     layout: column, gap: 14, align: center
 
-    [l3_valve: "Cloud Run Burst Fleet\n(500 RPS × max-inst)" | "T1 <15s | T2 <45s | T3 <180s"] {
+    [l3_valve: "One Cloud Run Service\n(Pub/Sub Push, 58 × 150 QPS)" | "VIP <15s | 7d <45s | 30d <180s"] {
       style: @GatewayHubCard, icon: "CloudRun"
     }
-    [l3_pool: "Short-Lived HTTP/2\n& Direct APNs (<3m)" | "0 Idle/GOAWAY Complexity"] {
+    [l3_pool: "HTTP/2 FCM\n& Direct APNs" | "≤ 50 Streams · iOS Off FCM Budget"] {
       style: @ProductCard, icon: "CloudLoadBalancing"
     }
 

@@ -76,7 +76,7 @@ N_{\text{Android\_FCM}} = \mathbf{9{,}900{,}000\text{ pushes}}, \qquad N_{\text{
 
 ### 1.3 Pilot Spike Harness Topology (Real Go Pipeline, Live Firebase Sandbox Shard & 15M-User Downstream Device Twin)
 
-![Pilot Spike Topology](/usr/local/google/home/kunall/.gemini/jetski/brain/48bf32ec-2e19-4453-a6d2-53cb87a819d9/pilot_spike_topology.png)
+![Pilot Spike Topology](assets/pilot_spike_topology.png)
 
 ---
 
@@ -97,7 +97,7 @@ N_{\text{Android\_FCM}} = \mathbf{9{,}900{,}000\text{ pushes}}, \qquad N_{\text{
 | **Layer 2: Ingestion & Flap Gate** | `STREAM_STARTED` Webhook Handler & 5m Dedup Gate | **100% REAL** | Real Go HTTP/webhook ingestion handler executing atomic `SET flap_gate:{streamer_id} NX EX 300` state transitions against all 10 concurrent streamer events ($t = 0$) plus synthetic OBS encoder drop/reconnect retries at $t = +2\text{s}$ and $t = +8\text{s}$. | **Webhook Producer Mock**: Synthetic storm generator fires 10 simultaneous Go-Live webhooks at $t = 0$ plus 20 duplicate flap webhooks at $+2\text{s}$ and $+8\text{s}$. |
 | **Layer 1: Subscription & Device Store** | Two-Tier Follower Graph (`55M` Edges across `15M` Users) | **MOCKED STORE + REAL SCANNER** | Real 64-shard parallel Go partition scanner (`bucket_id = 0..63`) iterating cursor pages, evaluating `last_active_at >= now - 30d` and `os_permission_granted == true`, and classifying `Tier 1`, `Tier 2`, and `Tier 3`. | **Mock 2 (`mock-subscription-store`)**: Deterministic 64-shard partitioned dataset representing 15M unique users and 55M follow edges (`1M..10M`) with configurable `2–5ms` page scan latency (emulating AlloyDB Read Pool / Bigtable scan throughput). |
 | **Layer 2: Presence & Frequency Cap** | Online WebSocket Filter & `≤ 5/min` Sliding Window | **REAL LOGIC + MOCKED BITMAP** | Real presence check, real VIP-first per-user frequency cap (`freq:{user_id}:{min} <= 5`), real $\le 1.5\text{ KB}$ self-sufficient payload builder (omitting `collapse_key`, setting `ttl = "1800s"`), and real 500-token batch packer (`39,600` batches). | **Mock 4 (`mock-presence-oauth`)**: Pre-populated Roaring bitmap representing 1,800,000 currently online platform users (`12%` hit rate $\rightarrow$ 3.3M WebSocket toasts) + Google OAuth 2.0 token provider. |
-| **Layer 2 → 3: Priority Queues & Autoscaler** | `Tier 1`, `Tier 2`, `Tier 3` Pub/Sub & Cloud Run Scaling | **MOCKED RUNTIME + REAL PREEMPTION** | Real strict priority preemption (`Tier 1 > Tier 2 > Tier 3`), real `concurrency = 1` batch delivery (500 tokens/request), and real worker scaling lifecycle. | **Mock 3 (`mock-cloudrun-runtime`)**: Local priority queue dispatcher emulating Cloud Run's warm `min-instances = 2` Tier-1 pool and realistic **2.0s–5.0s cold-start ramp** from `0 -> max-instances` for Tier 2 and Tier 3 workers. |
+| **Layer 2 → 3: Fan-Out Priority Release & Autoscaler** | Pub/Sub Push & One Cloud Run Service Scaling | **MOCKED RUNTIME + REAL PRIORITY RELEASE** | Real strict fan-out priority release (`Tier 1 > Tier 2 > Tier 3`), real `concurrency = 1` mixed-batch delivery (500 tokens/request), and real worker scaling lifecycle. | **Mock 3 (`mock-cloudrun-runtime`)**: Local Pub/Sub push dispatcher emulating one shared Cloud Run service with `min-instances = 2` warm instances and a realistic **2.0s–5.0s cold-start ramp** up to `max-instances`. |
 | **Layer 3: Burst Transport Dispatcher** | Cloud Run Worker Pool (Native Go & `Gorush` Sync Mode) | **100% REAL** | Real HTTP/2 client transport (TLS to live `fcm.googleapis.com` + `h2c`/TLS to emulator shards), real **50-goroutine stream concurrency semaphore** per worker instance, real **500 RPS/instance** token pacing, real Full-Jitter exponential backoff on `429`/`503`, and real `Gorush` (`"sync": true`) sidecar adapter. | None (executes real Go goroutines, real JSON serialization, and real HTTP/2 frames). |
 | **Layer 3 Edge: FCM v1 & APNs Gateways** | `fcm.googleapis.com` & `api.push.apple.com` | **HYBRID: LIVE `fcm.googleapis.com` SHARD 0 + EMULATOR SHARDS 1..K** | **Live Shard 0 (`fcm.googleapis.com`)**: Calls the **REAL live `https://fcm.googleapis.com/v1/projects/{project_id}/messages:send` API** at up to **10,000 QPS (`600,000 msgs/min`)** with `"validate_only": true`, real OAuth 2.0 Bearer tokens, real sandbox registration tokens (`200 OK`), synthetic unregistered FIDs (`404 UNREGISTERED`), and invalid/over-burst test vectors (`400` / `429`). | **Parallel Shards 1..K & APNs Emulator (`mock-fcm-apns-edge`)**: Runs real `golang.org/x/net/http2` servers (`MaxConcurrentStreams: 100`, 60s rolling token buckets, `15–50ms` RTT) for Shards `1..K` and iOS APNs so all 19.8M pushes drain in `< 180s`. |
 | **Layer 4: Dead-Token Pruner & SLA Audit** | Async `404`/`410` Cleanup & 3.5% 4xx Circuit Breaker | **100% REAL** | Real asynchronous dead-token batch consumer deactivating genuine live `HTTP 404 UNREGISTERED` tokens in the device store, real rolling 4xx error-rate monitor tripping the **3.5% Tier-3 load-shedding circuit breaker**, and real HDR histogram telemetry (`p50`, `p95`, `p99`, `100%` completion). | None (all pruning state mutations, circuit-breaker trips, and latency histograms are computed in real time). |
@@ -192,12 +192,12 @@ Before we write code in `/tmp/pilot-live-scale/` and execute the benchmark, plea
    * **Option B — Auto-Detect Credentials with Seamless Pre-Flight Fallback**: If live sandbox Firebase credentials are present in the environment (`GOOGLE_APPLICATION_CREDENTIALS` / `FIREBASE_PROJECT_ID`), execute Live Shard 0 against `fcm.googleapis.com`; otherwise run the full 55M storm + 15M-User Downstream Device Twin locally and generate the ready-to-run live `fcm.googleapis.com` probe command.
 
 2. **Layer 3 Dispatcher Engine Under Test**:
-   * **Option A — Benchmark Both Side-by-Side (Recommended)**: Run the ~60-line **Native Go Cloud Run Handler** and the **Stock `Gorush` (`"sync": true`) + ~30-Line Sidecar Adapter** pattern in back-to-back test passes so we can compare their memory footprint, tail latency, and throughput directly.
+   * **Option A — Benchmark Both Side-by-Side (Recommended)**: Run the **Native Go Cloud Run Handler** and the **Stock `Gorush` (`"sync": true`) + ~30-Line Sidecar Adapter** pattern in back-to-back test passes so we can compare their memory footprint, tail latency, and throughput directly.
    * **Option B — Native Go Cloud Run Handler Only**.
    * **Option C — `Gorush` (`"sync": true`) + Sidecar Adapter Only**.
 
 3. **Downstream Device Twin A/B Comparison & Chaos Scope**:
-   * **Option A — Full 55M Storm + 15M-User Downstream Gotcha A/B Comparison + Chaos Pass (Recommended)**: Run the 55M-follower 10-streamer storm verifying all SLAs (`T1 < 15s`, `T2 < 45s`, `T3 < 180s`), execute the **Naive vs. Target A/B comparison across all 4 Downstream Gotchas**, and run the **Chaos Pass** (`5.0% HTTP 404` surge tripping the `3.5%` Tier-3 circuit breaker, `HTTP 429` Full-Jitter backoff, and `101-stream` `GOAWAY` enforcement).
+   * **Option A — Full 55M Storm + 15M-User Downstream Gotcha A/B Comparison + Chaos Pass (Recommended)**: Run the 55M-follower 10-streamer storm verifying all SLAs (`Tier 1 < 15s`, `Tier 2 < 45s`, `Tier 3 < 180s`), execute the **Naive vs. Target A/B comparison across all 4 Downstream Gotchas**, and run the **Chaos Pass** (`5.0% HTTP 404` surge tripping the `3.5%` Tier-3 circuit breaker, `HTTP 429` Full-Jitter backoff, and `101-stream` `GOAWAY` enforcement).
    * **Option B — Happy-Path 55M Storm + Downstream Gotcha Verification Only**.
 
 ---
@@ -221,7 +221,7 @@ All pilot code and benchmark artifacts will be created strictly inside `/tmp/pil
 │   ├── dispatcher/
 │   │   ├── live_fcm_client.go              # REAL: Live https://fcm.googleapis.com/v1/.../messages:send client
 │   │   │                                   #       (validate_only=true, real 600k/m quota, 404 FID, 400, 429)
-│   │   ├── cloudrun_native.go              # REAL: ~60-LoC Cloud Run worker (concurrency=1, 50-stream sem)
+│   │   ├── cloudrun_native.go              # REAL: Cloud Run worker (concurrency=1, 50-stream sem)
 │   │   └── gorush_sidecar.go               # REAL: ~30-LoC Pub/Sub push sidecar + Gorush sync=true engine
 │   ├── downstream/
 │   │   ├── device_twin_15m.go              # TWIN: 15M-User Stateful Downstream Device Twin (A/B Naive vs Target
@@ -232,7 +232,7 @@ All pilot code and benchmark artifacts will be created strictly inside `/tmp/pil
 │   ├── mocks/
 │   │   ├── edge_http2_server.go            # EMULATOR: Parallel Shards 1..K & APNs (MaxStreams=100, 60s quota)
 │   │   ├── subscription_store_64shard.go   # MOCK: 55M edges across 15M users (1M..10M streamers)
-│   │   ├── cloudrun_autoscaler.go          # MOCK: Priority queues + 2-5s cold-start instance ramp
+│   │   ├── cloudrun_autoscaler.go          # MOCK: Fan-out priority release + 2-5s cold-start instance ramp (2 warm)
 │   │   └── presence_oauth.go               # MOCK: 12% online bitmap + OAuth token cache
 │   └── telemetry/
 │       └── sla_verifier.go                 # REAL: Per-streamer SLA, Live FCM quota & 4-Gotcha A/B auditor

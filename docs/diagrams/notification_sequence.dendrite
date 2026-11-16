@@ -20,7 +20,7 @@ Style @ActorCard {
   iconPosition: "left", iconSize: 26, padding: 10, shadow: true
 }
 Style @ProductCard {
-  width: 182, height: 56,
+  width: 204, height: 58,
   fill: $SurfaceWhite, strokeColor: $CardBorder, strokeWidth: 1, borderRadius: 8,
   fontColor: $DarkSlate, subFontColor: $SubText,
   fontSize: 13.5, subFontSize: 11, labelWeight: bold,
@@ -41,29 +41,29 @@ Zone @NotificationSequence {
   [Broadcast: "LiveStream Ingest\n& Web Presence" | "Ingest & WebSockets"] { style: @ActorCard, icon: "MediaServices" }
   [Brain: "Policy & Fan-Out\nBrain (Layer 2)" | "Flap Gate & Tiering"] { style: @ProductCard, icon: "GKE" }
   [Store: "Subscription &\nDevice Store (Layer 1)" | "Two-Tier Index"] { style: @ProductCard, icon: "AlloyDB" }
-  [Valve: "Cloud Run Burst\nValve (Layer 3)" | "500 RPS × max-inst"] { style: @ProductCard, icon: "CloudRun" }
+  [Valve: "One Cloud Run\nService (Layer 3)" | "58 × 150 QPS"] { style: @ProductCard, icon: "CloudRun" }
   [Gateways: "FCM HTTP v1 &\nDirect APNs" | "Cloud Push Gateways"] { style: @ProductCard, icon: "CloudAPIs" }
   [Devices: "Viewer Devices\n(Phone + Tablet)" | "iOS, Android & Web"] { style: @ActorCard, icon: "Smartphone" }
 
   Group @DispatchLoop {
     frame: "loop"
-    label: "Cloud Run Burst Drain (<3m Total, 0 Idle/GOAWAY Complexity, T1 <15s)"
+    label: "Fan-Out Priority Release (Tier 1 → 2 → 3, ≤ 58 in Flight, VIP <15s)"
     fromStep: 8
-    toStep: 10
+    toStep: 11
   }
 
   Group @DeadTokenCleanup {
     frame: "opt"
     label: "Async Dead-Token Hygiene (Keeps Client 4xx < 1%)"
-    fromStep: 11
-    toStep: 11
+    fromStep: 12
+    toStep: 12
   }
 
   Group @CrossDeviceSync {
     frame: "opt"
     label: "Cross-Device Notification Dismissal on User Tap"
-    fromStep: 12
-    toStep: 15
+    fromStep: 13
+    toStep: 16
   }
 }
 
@@ -73,10 +73,11 @@ Zone @NotificationSequence {
 [Store] -.-> [Brain]: "Stream Tiers 1 (VIP), 2 (7d), 3 (30d)"
 [Brain] --> [Broadcast]: "Filter Online WebSocket Viewers"
 [Broadcast] -.-> [Devices]: "In-App WebSocket Toast (<2s, 0 FCM Quota)"
-[Brain] --> [Valve]: "Push 500-Token Batches (Concurrency=1)"
-[Valve] --> [Gateways]: "Short-Lived HTTP/2 & APNs (50 Streams, <3m)"
+[Brain] --> [Valve]: "Release 500-Token Mixed Batches via Pub/Sub Push (Tier 1 First)"
+[Valve] --> [Gateways]: "Concurrent Direct APNs & Paced HTTP/2 FCM (≤ 50 Streams)"
 [Gateways] -.-> [Devices]: "Deliver Push (CDN Thumbnail, 0 Origin RPC)"
 [Gateways] -.-> [Valve]: "HTTP 200 OK (or 429 Retry / 404 Dead)"
+[Valve] -.-> [Brain]: "Completion Count (Release Next Batch)"
 [Valve] --> [Store]: "Async Deactivate 404 / 400 / 410 Tokens" { markerEnd: "arrow-open" }
 [Devices] --> [Brain]: "User Taps Phone Banner (Correlation ID)"
 [Brain] --> [Broadcast]: "Mark Web Notification Inbox Read"
