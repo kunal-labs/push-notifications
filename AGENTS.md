@@ -1,4 +1,4 @@
-# push-notifications — Agent Charter (v3 · 2026-11-16)
+# push-notifications — Agent Charter (v4 · 2026-11-17)
 > Follow on every task. On conflict, stop and raise `⚠️ CHARTER CONFLICT: <ID>`.
 > Amend only via @techo Charter Capture or /discuss → ADR.
 
@@ -18,6 +18,7 @@ Hyperscale live-stream push platform (100k–10M+ followers/channel): <15s VIP a
 - N2 Build & Tooling: Thin Makefile -> scripts/*.sh (build, test, run, clean, help, tidy-check).
 ### Code & repo
 - N3 Diagrams: Architecture/sequence/data-flow diagrams in Dendrite (.dendrite) in docs/diagrams/, exported to docs/assets/ (dendrite-export).
+- N4 Demo simplicity & autonomy: keep demos minimal, story-first (minimal AWS change, heavy lifting on GCP); agents pick the simplest option, escalating only hard blockers.
 
 ## Decisions (binding)
 - D1 Decoupled Subscription/Device Store (channel_followers + user_devices, 64 parallel shards) replacing FCM Topics (pilot 2026-10-19).
