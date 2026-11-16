@@ -80,7 +80,7 @@ Cloud gateway errors are evaluated with field-level precision:
 ### HTTP Endpoints (`--mode=server`)
 
 - `GET /`: Interactive Google Cloud Control Room UI.
-- `GET /healthz`: Health check returning `200 OK`.
+- `GET /api/health`, `GET /healthz`: Health check endpoints returning `200 OK` (use `/api/health` behind Cloud Run `*.run.app`).
 - `GET /api/simulate`: Returns full JSON simulation telemetry for both single-creator bursts and prime-time multi-streamer waves (optional `?followers=2000000`).
 - `GET /api/inbox`: Returns the seeded multi-device notification inbox state.
 - `POST /api/inbox/tap`: Marks a notification `READ` and emits silent cross-device dismissal envelopes (`apns-priority: 5`, zero origin wakeup RPCs).
@@ -120,7 +120,7 @@ Deploy the containerized Control Room and live HTTP/2 FCM probe service to Googl
 PROJECT_ID=kunal-scratch SANDBOX_FCM_PROJECT_ID=kunal-scratch ./scripts/deploy-cloudrun.sh
 ```
 
-The deployment script enforces the sandbox allowlist (`kunal-scratch`, rejecting any `prod` or `live` project names), builds from `Dockerfile`, attempts `--allow-unauthenticated` first, and if organization IAM policy restricts `allUsers`, automatically falls back to `--no-allow-unauthenticated` and verifies `/healthz` and `/api/simulate` using an IAM identity token (`gcloud auth print-identity-token`). For local browser access behind IAM authentication, run:
+The deployment script enforces the sandbox allowlist (`kunal-scratch`, rejecting any `prod` or `live` project names), builds from `Dockerfile`, attempts `--allow-unauthenticated` first, and if organization IAM policy restricts `allUsers`, automatically falls back to `--no-allow-unauthenticated` and verifies `/api/health` and `/api/simulate` using an IAM identity token (`gcloud auth print-identity-token`). For local browser access behind IAM authentication, run:
 
 ```bash
 gcloud run services proxy push-sideplane-demo --project=kunal-scratch --region=us-central1 --port=8080

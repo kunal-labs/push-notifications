@@ -65,8 +65,9 @@ if [[ "$AUTH_MODE" == "iam" ]]; then
   CURL_AUTH_ARGS=(-H "Authorization: Bearer ${ID_TOKEN}")
 fi
 
-echo "Verifying ${SERVICE_URL}/healthz..."
-timeout -k 5 30s curl -fsS "${CURL_AUTH_ARGS[@]}" "${SERVICE_URL}/healthz"
+# Use /api/health because Cloud Run *.run.app GFE intercepts /healthz.
+echo "Verifying ${SERVICE_URL}/api/health..."
+timeout -k 5 30s curl -fsS "${CURL_AUTH_ARGS[@]}" "${SERVICE_URL}/api/health"
 echo ""
 
 echo "Verifying ${SERVICE_URL}/api/simulate..."
