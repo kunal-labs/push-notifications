@@ -16,7 +16,7 @@ The platform separates notification control-plane intelligence from stateless HT
 - `internal/bitmap`: Compact `uint64`-chunked presence bitmap (`250 KB` for 2,000,000 users, lock-free `< 100 ns` lookup) intercepting online viewers via WebSocket toasts.
 - `internal/filter`: Decoupled 64-shard `channel_followers` and `user_devices` subscription store, `<= 30d` dormancy and operating system permission gate, 5-minute reconnect flap debounce lock, VIP-first sliding-window `<= 5/min` frequency cap, and downstream-safe payload shaper (`collapse_key` omitted on Android, `ttl: 1800s`, `apns-priority` `10`/`5`).
 - `internal/egress`: Domain-blind Layer 3 burst transport featuring stdlib ECDSA P-256 `.p8` ES256 APNs JWT signing, 50-stream HTTP/2 multiplexing (`ForceAttemptHTTP2: true`), field-aware `404 UNREGISTERED` / `410` / `message.token` token pruning, a `3.5%` rolling 4xx load-shedding circuit breaker, and a server-pinned sandbox FCM backbone probe (`<= 6 req/min`).
-- `internal/shaper`: 3-Tier priority preemption and prime-time multi-streamer plateau pacer (`520k/min` sustained for `5.92m` across 3 daily waves of 7 staggered 2.0M creators arriving every 40s, unlocking 3/3 daily AutoQuota 5-minute sustained blocks).
+- `internal/shaper`: Fan-out priority release across three audience tiers into a single Cloud Run egress service (`58 × 150 QPS = 8,700 QPS ≈ 522k/min` FCM fleet cap; each 500-token batch carries both platforms and sends iOS to Direct APNs alongside the paced FCM sends, yielding a `6.09m` sustained plateau at `511,850/min` peak Android minute across 3 daily waves of 7 staggered 2.0M creators arriving every 40s).
 - `internal/inbox`: Per-user 30-minute TTL notification inbox and cross-device silent tap-to-dismiss synchronization (`apns-priority: 5` background APNs, FCM data-sync, WebSocket toast sync) with zero origin wakeup RPCs.
 - `internal/ui`: Embedded Google Cloud-styled interactive Control Room dashboard.
 
@@ -35,11 +35,45 @@ Architecture and sequence diagrams are authored using Dendrite DSL in `docs/diag
 
 During peak traffic scenarios where multiple marquee streamers go live simultaneously:
 
-| Audience Tier | Description | Target Delivery Latency |
+| Audience Segment | Description | Target Delivery Latency |
 | :--- | :--- | :--- |
-| **Tier 1 (VIPs)** | Channel moderators, VIP subscribers, active gifters | `< 15 seconds` (`7.6s` in side-plane waves) |
-| **Tier 2 (Active 7d)** | Users active on the platform within the past 7 days | `< 45 seconds` (`25.4s` in side-plane waves) |
-| **Tier 3 (Casual 8–30d)** | Casual followers active within the past 30 days | `< 180 seconds` (`< 160s` worst-case in side-plane waves) |
+| **Tier 1 (VIPs)** | Channel moderators, VIP subscribers, active gifters | `< 15 seconds` (`11.5s` worst-case in side-plane waves) |
+| **Tier 2 (Active 7d)** | Users active on the platform within the past 7 days | `< 45 seconds` (`30.2s` worst-case in side-plane waves) |
+| **Tier 3 (Casual 8–30d)** | Casual followers active within the past 30 days | `< 180 seconds` (`55.7s` single creator; `166.9s` worst-case in a 7 × 2.0M wave) |
+
+### Egress Service Model
+
+Layer 3 egress runs as **one Cloud Run service fed by Pub/Sub push** with `concurrency = 1` (one 500-token mixed-platform batch per request/instance: at the modelled 50% iOS share, `~250` Android/Web tokens paced through FCM at the `150 QPS` in-memory per-instance limit while `~250` iOS tokens are sent concurrently to Direct APNs under a `0.3s` send-time assumption, giving an instance busy time of `max(fcm_tokens/150, ios_send_time) ≈ 1.67s`). Cloud Run uses native request-based autoscaling from the configured warm minimum (`min-instances`, default `2`, range `0–58`) up to `max-instances: 58` and back down when idle.
+
+- **Fleet Cap (`58 × 150 QPS = 8,700 QPS ≈ 522k/min`)**: Derived directly from `max-instances` multiplied by the per-instance in-memory FCM rate limit, staying under the `600k/min` default FCM quota with no Redis or cross-instance coordination.
+- **Mixed-Platform Batches & Concurrent Direct APNs (`0.3s` Assumption)**: Each 500-token batch carries both platforms for its tier (`~250` Android/Web + `~250` iOS at the modelled 50% iOS share). Each instance paces the Android/Web share through FCM at `150 QPS` while sending the iOS share concurrently to Direct APNs over its `.p8` HTTP/2 connection pool (`0.3s` labelled assumption, overlapping the `~1.67s` FCM send). iOS never consumes the FCM budget (`0` FCM debit), so the sustained Android FCM plateau reaches `511,850/min` (`6.09m` wave duration)—clearing the `480,000/min` (80%) AutoQuota 5-minute threshold (`3/3` daily blocks unlocked).
+- **Fan-Out Priority Release & 58-Batch Window**: Layer 2 publishes Tier 1 batches first and holds Tier 2 and Tier 3. Tier 2 is released only when Tier 1 has nothing left to publish, and Tier 3 only after Tier 2. The number of released-but-unfinished batches is capped at `58` (one per instance), paced by the completion-count drain signal from the async result webhook. An overlapping VIP burst therefore waits behind at most one in-flight batch per instance (`<= 1.7s` at 50% iOS share, `<= 3.33s` worst-case) rather than a casual backlog.
+- **Direct APNs Offload**: iOS deliveries route directly to APNs over HTTP/2 alongside the paced FCM sends (`0` FCM budget consumed), keeping the modelled 2.0M-follower creator funnel at `440k` FCM + `440k` APNs pushes.
+- **VIP Batch-Round Math & Tier 3 Starvation**: A 2.0M-follower creator produces `66,000` VIP FCM tokens and `66,000` VIP iOS tokens (`132,000` total = `264` mixed 500-token batches). Across `58` instances (`5` rounds of `~1.7s`), plus the `3s` cold start on the first burst after idle (with `2` warm instances), VIP delivery completes in `11.5s` (single 2.0M creator drains in `55.7s`; `7 × 2.0M` wave worst-case Tier 3 is `166.9s`). Priority release is strict with no aging: Tier 3 receives zero releases while Tier 1 and Tier 2 have unreleased batches, and zero capacity while their combined demand meets or exceeds the fleet cap.
+- **Primary Advantage**: Hosting the stateless egress service in a single Google Cloud region keeps network latency to `fcm.googleapis.com` low and steady.
+
+**Warm Capacity**: Warm capacity is a setting: keep a small minimum (or zero) day-to-day and raise min-instances ahead of known prime-time windows; Cloud Run scales back to the configured minimum afterwards.
+
+Model outputs under a `3s` cold-start and `0.3s` concurrent iOS send assumption (`2.0M` followers per creator, `58 × 150 QPS` cap):
+
+| `min-instances` | Single VIP | Single Active 7d | Single Drain | Wave Worst VIP | Wave Worst Tier 3 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `0` | `11.5s` | `30.2s` | `55.7s` | `11.5s` | `166.9s` |
+| `2` (default) | `11.5s` | `30.2s` | `55.7s` | `11.5s` | `166.9s` |
+| `10` | `11.5s` | `28.5s` | `54.4s` | `11.5s` | `166.9s` |
+| `20` | `10.2s` | `28.5s` | `54.0s` | `10.2s` | `166.9s` |
+| `30` | `10.2s` | `28.5s` | `54.0s` | `10.2s` | `165.6s` |
+| `58` | `8.5s` | `27.2s` | `52.7s` | `10.1s` | `163.9s` |
+
+*(Note: Overlapping creators' VIP latency in a multi-streamer wave shifts slightly with batch-cycle phase alignment and stays `< 15s` for all warm settings.)*
+
+Model sensitivity to cold-start duration (`2` warm instances, `0.3s` concurrent iOS send assumption):
+
+| Cold Start | Single VIP | Single Active 7d | Wave Worst Tier 3 |
+| :--- | :--- | :--- | :--- |
+| `0s` | `8.5s` | `27.2s` | `163.9s` |
+| `3s` | `11.5s` | `30.2s` | `166.9s` |
+| `5s` | `13.5s` | `32.2s` | `168.9s` |
 
 ---
 
@@ -68,6 +102,7 @@ Cloud gateway errors are evaluated with field-level precision:
 - `--mode`: Execution mode (`cli` for deterministic benchmark output, `server` for HTTP Control Room and APIs; default `cli`).
 - `--port`: HTTP listen port when `--mode=server` (overrides `PORT`; default `8080`).
 - `--followers`: Simulated follower count per creator (default `2000000`).
+- `--warm-instances`: Warm Cloud Run instances kept between bursts (`0–58`, default `2`).
 
 ### Environment Variables
 
@@ -81,7 +116,7 @@ Cloud gateway errors are evaluated with field-level precision:
 
 - `GET /`: Interactive Google Cloud Control Room UI.
 - `GET /api/health`, `GET /healthz`: Health check endpoints returning `200 OK` (use `/api/health` behind Cloud Run `*.run.app`).
-- `GET /api/simulate`: Returns full JSON simulation telemetry for both single-creator bursts and prime-time multi-streamer waves (optional `?followers=2000000`).
+- `GET /api/simulate`: Returns full JSON simulation telemetry for single-creator bursts and prime-time multi-streamer waves, including the modelled egress fleet configuration (`fleet`: max/min instances, per-instance QPS, batch size, cold-start and concurrent iOS send-time assumptions) and priority-release telemetry (fleet cap and peak QPS, peak busy instances, priority violations, VIP first-batch wait). Optional `?followers=2000000` and `?warm=2` (warm instances, `0–58`).
 - `GET /api/inbox`: Returns the seeded multi-device notification inbox state.
 - `POST /api/inbox/tap`: Marks a notification `READ` and emits silent cross-device dismissal envelopes (`apns-priority: 5`, zero origin wakeup RPCs).
 - `POST /api/inbox/reset`: Resets the demo inbox to unread state.

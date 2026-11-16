@@ -36,6 +36,7 @@ type ServerConfig struct {
 	TLSConfig           *tls.Config
 	AccessToken         string
 	DefaultFollowers    int
+	Fleet               shaper.FleetConfig
 	ProbeLimiter        *egress.ProbeRateLimiter
 	InboxStore          *inbox.Store
 }
@@ -44,6 +45,9 @@ type ServerConfig struct {
 func NewRouter(cfg ServerConfig) http.Handler {
 	if cfg.DefaultFollowers <= 0 {
 		cfg.DefaultFollowers = 2_000_000
+	}
+	if cfg.Fleet.MaxInstances <= 0 || cfg.Fleet.PerInstanceQPS <= 0 || cfg.Fleet.BatchSize <= 0 || cfg.Fleet.ReleaseIntervalSec <= 0 {
+		cfg.Fleet = shaper.DefaultFleet()
 	}
 	if cfg.ProbeLimiter == nil {
 		cfg.ProbeLimiter = egress.NewProbeRateLimiter(egress.DefaultProbeRateLimitPerMin)
@@ -68,7 +72,15 @@ func NewRouter(cfg ServerConfig) http.Handler {
 				followers = n
 			}
 		}
-		rep := shaper.RunFullSimulation(followers)
+		fleet := cfg.Fleet
+		if raw := r.URL.Query().Get("warm"); raw != "" {
+			if n, err := strconv.Atoi(raw); err == nil {
+				if updated, err := fleet.WithMinInstances(n); err == nil {
+					fleet = updated
+				}
+			}
+		}
+		rep := shaper.RunFullSimulationWithFleet(followers, fleet)
 		writeJSON(w, http.StatusOK, rep)
 	})
 
@@ -128,7 +140,11 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func runCLI(followers int, out io.Writer) error {
-	rep := shaper.RunFullSimulation(followers)
+	return runCLIWithFleet(followers, shaper.DefaultFleet(), out)
+}
+
+func runCLIWithFleet(followers int, fleet shaper.FleetConfig, out io.Writer) error {
+	rep := shaper.RunFullSimulationWithFleet(followers, fleet)
 
 	// Exercise live modules quickly so CLI output reflects real runtime execution.
 	bm := bitmap.NewPresenceBitmap(2_000_000)
@@ -195,6 +211,13 @@ func runCLI(followers int, out io.Writer) error {
 	fmt.Fprintf(out, "  - Direct APNs ES256 Signer:     OK (token_len=%d chars)\n", len(jwtTok))
 	fmt.Fprintf(out, "  - Error Classifier Guard:       404 UNREGISTERED prune=%v | 400 schema prune=%v\n", unregDec.ShouldPruneToken, schemaDec.ShouldPruneToken)
 	fmt.Fprintf(out, "  - Cross-Device Inbox Tap:       status=%s, envelopes=%d (apns-priority=5), origin_rpcs=%d\n\n", tapRes.Status, len(tapRes.DismissEnvelopes), tapRes.OriginWakeupRPCs)
+	fmt.Fprintf(out, "Fleet Cap | %d instances x %d QPS = %d QPS (%d/min), %d warm, concurrency=1\n\n",
+		rep.Fleet.MaxInstances, rep.Fleet.PerInstanceQPS, rep.Fleet.CapQPS(), rep.Fleet.CapPerMin(), rep.Fleet.MinInstances)
+
+	ssGoodput := fmt.Sprintf("%d / %d", ss.TheoreticalCeilingMin, ss.RealizedGoodputMin)
+	if ss.RealizedGoodputBasis == "burst_normalised" {
+		ssGoodput = fmt.Sprintf("%d / %d (%.1fs burst)", ss.TheoreticalCeilingMin, ss.RealizedGoodputMin, ss.PlateauSeconds)
+	}
 
 	fmt.Fprintf(out, "--- Scenario A: Single-Creator Go-Live (%d raw edges) ---\n", rep.FollowersPerCreator)
 	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "Metric", "Baseline", "Side-Plane Std")
@@ -202,7 +225,7 @@ func runCLI(followers int, out io.Writer) error {
 	fmt.Fprintf(out, "%-28s | %-18d | %-18d\n", "Net FCM Pushes", sb.NetFCMDeliveredPerWave, ss.NetFCMDeliveredPerWave)
 	fmt.Fprintf(out, "%-28s | %-18d | %-18d\n", "Direct APNs Offload", 0, ss.DirectAPNsPerWave)
 	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "FCM Quota Reduction", "0.0%", fmt.Sprintf("-%.1f%%", ss.FCMReductionPct))
-	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "200 OK Ceiling / Goodput", fmt.Sprintf("%d / %d", sb.TheoreticalCeilingMin, sb.RealizedGoodputMin), fmt.Sprintf("%d / %d", ss.TheoreticalCeilingMin, ss.RealizedGoodputMin))
+	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "200 OK Ceiling / Goodput", fmt.Sprintf("%d / %d", sb.TheoreticalCeilingMin, sb.RealizedGoodputMin), ssGoodput)
 	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "VIP Preemption Latency", fmt.Sprintf("%.1fs (FIFO)", sb.VIPLatencySec), fmt.Sprintf("%.1fs (< 15s)", ss.VIPLatencySec))
 	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "Active-7d / 100% Drain", fmt.Sprintf("%.1fs / %.1fs", sb.Active7dLatencySec, sb.WorstTier3LatencySec), fmt.Sprintf("%.1fs / %.1fs", ss.Active7dLatencySec, ss.WorstTier3LatencySec))
 	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n\n", "Client 4xx / HTTP 429s", fmt.Sprintf("%.1f%% / %d", sb.Client4xxPct, sb.HTTP429Rejections), fmt.Sprintf("%.1f%% / %d", ss.Client4xxPct, ss.HTTP429Rejections))
@@ -215,10 +238,14 @@ func runCLI(followers int, out io.Writer) error {
 	fmt.Fprintf(out, "%-28s | %-18d | %-18d\n", "Direct APNs / Wave", 0, ps.DirectAPNsPerWave)
 	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "200 OK Ceiling / Goodput", fmt.Sprintf("%d / %d", pb.TheoreticalCeilingMin, pb.RealizedGoodputMin), fmt.Sprintf("%d / %d", ps.TheoreticalCeilingMin, ps.RealizedGoodputMin))
 	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "Plateau Rate & Duration", fmt.Sprintf("%d/m", pb.RealizedGoodputMin), fmt.Sprintf("%.2fm @ %d/m", ps.PlateauMinutes, ps.PeakSustainedPerMin))
-	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "VIP Preemption Latency", fmt.Sprintf("%.1fs (> 60s)", pb.VIPLatencySec), fmt.Sprintf("%.1fs (< 8s)", ps.VIPLatencySec))
+	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "VIP Preemption Latency", fmt.Sprintf("%.1fs (> 60s)", pb.VIPLatencySec), fmt.Sprintf("%.1fs (< 15s)", ps.VIPLatencySec))
 	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "Active-7d / Worst Tier-3", fmt.Sprintf("%.1fs / %.1fs", pb.Active7dLatencySec, pb.WorstTier3LatencySec), fmt.Sprintf("%.1fs / %.1fs", ps.Active7dLatencySec, ps.WorstTier3LatencySec))
 	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "Client 4xx / HTTP 429s", fmt.Sprintf("%.1f%% / %d", pb.Client4xxPct, pb.HTTP429Rejections), fmt.Sprintf("%.1f%% / %d", ps.Client4xxPct, ps.HTTP429Rejections))
-	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "Daily AutoQuota 5m Blocks", fmt.Sprintf("%d/3 (Disqualified)", pb.QualifyingBlocksDaily), fmt.Sprintf("%d/3 (Unlocked)", ps.QualifyingBlocksDaily))
+	quotaStatus := "Below 80%"
+	if ps.QualifyingBlocksDaily > 0 {
+		quotaStatus = "Unlocked"
+	}
+	fmt.Fprintf(out, "%-28s | %-18s | %-18s\n", "Daily AutoQuota 5m Blocks", fmt.Sprintf("%d/3 (Disqualified)", pb.QualifyingBlocksDaily), fmt.Sprintf("%d/3 (%s)", ps.QualifyingBlocksDaily, quotaStatus))
 	fmt.Fprintf(out, "%-28s | %-18v | %-18v\n", "100% Message Conservation", pb.MessageConserved, ps.MessageConserved)
 
 	return nil
@@ -228,11 +255,19 @@ func main() {
 	mode := flag.String("mode", "cli", "execution mode: cli or server")
 	port := flag.String("port", "", "HTTP listen port (defaults to PORT env or 8080)")
 	followers := flag.Int("followers", 2_000_000, "simulated follower count per creator")
+	warmInstances := flag.Int("warm-instances", 2, "warm Cloud Run instances kept between bursts (0..58)")
 	flag.Parse()
+
+	fleet, err := shaper.DefaultFleet().WithMinInstances(*warmInstances)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid --warm-instances: %v\n", err)
+		flag.Usage()
+		os.Exit(2)
+	}
 
 	switch *mode {
 	case "cli":
-		if err := runCLI(*followers, os.Stdout); err != nil {
+		if err := runCLIWithFleet(*followers, fleet, os.Stdout); err != nil {
 			fmt.Fprintf(os.Stderr, "cli error: %v\n", err)
 			os.Exit(1)
 		}
@@ -247,6 +282,7 @@ func main() {
 		cfg := ServerConfig{
 			SandboxFCMProjectID: os.Getenv("SANDBOX_FCM_PROJECT_ID"),
 			DefaultFollowers:    *followers,
+			Fleet:               fleet,
 		}
 		srv := &http.Server{
 			Addr:              ":" + listenPort,
