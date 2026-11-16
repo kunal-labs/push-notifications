@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Running push-notifications delivery service in local environment..."
-if [[ -f "main.go" ]]; then
-  timeout -k 5 60s go run main.go
-else
-  echo "Service entrypoint main.go not present yet. Refer to documentation in docs/."
-fi
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+echo "Running push-notifications sideplane-demo CLI benchmark..."
+timeout -k 5 60s go run ./cmd/sideplane-demo --mode=cli "$@"

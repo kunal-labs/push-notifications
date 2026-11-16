@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Push Notification Side-Plane Control Room</title>
+  <style>
+    :root {
+      --gcp-blue: #1a73e8;
+      --gcp-blue-dark: #1557b0;
+      --gcp-green: #188038;
+      --gcp-green-bg: #e6f4ea;
+      --gcp-red: #d93025;
+      --gcp-red-bg: #fce8e6;
+      --gcp-amber: #b06000;
+      --gcp-amber-bg: #fef7e0;
+      --bg: #f8f9fa;
+      --card: #ffffff;
+      --text: #202124;
+      --muted: #5f6368;
+      --border: #dadce0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-badge {
+      background: var(--gcp-blue);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.3px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .mode-switch {
+      display: flex;
+      background: #f1f3f4;
+      padding: 4px;
+      border-radius: 8px;
+      gap: 4px;
+    }
+    .mode-btn {
+      border: none;
+      background: transparent;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .mode-btn.active {
+      background: #ffffff;
+      color: var(--gcp-blue);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
+    main {
+      max-width: 1320px;
+      margin: 20px auto;
+      padding: 0 20px 40px;
+      display: grid;
+      gap: 20px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 960px) {
+      .grid-2, .grid-4 { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 2px rgba(60, 64, 67, 0.06);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      gap: 8px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .pill {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+    .pill-red { background: var(--gcp-red-bg); color: var(--gcp-red); }
+    .pill-green { background: var(--gcp-green-bg); color: var(--gcp-green); }
+    .pill-blue { background: #e8f0fe; color: var(--gcp-blue); }
+    .pill-amber { background: var(--gcp-amber-bg); color: var(--gcp-amber); }
+    .metric-val {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 4px 0;
+    }
+    .metric-label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid #eceff1;
+    }
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 12px;
+    }
+    .waterfall {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+    @media (max-width: 960px) {
+      .waterfall { grid-template-columns: 1fr; }
+    }
+    .wf-step {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fafbfc;
+    }
+    .wf-step .wf-num {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--gcp-blue);
+    }
+    .wf-step.final .wf-num { color: var(--gcp-green); }
+    .wf-step .wf-delta {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .btn {
+      background: var(--gcp-blue);
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:hover { background: var(--gcp-blue-dark); }
+    .btn-secondary {
+      background: #ffffff;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: #f1f3f4; }
+    .inbox-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      gap: 12px;
+    }
+    .device-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .device-tray {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 12px;
+      background: #fafbfc;
+    }
+    pre.probe-out {
+      background: #202124;
+      color: #e8eaed;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      overflow-x: auto;
+      margin-top: 10px;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .legend-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="brand-badge">GCP SIDE-PLANE</span>
+      <div>
+        <h1>Push Notification &amp; Quota-Unlocker Control Room</h1>
+        <div class="subtitle">64-Shard Subscription Store, Presence Bitmap, Dual APNs/FCM HTTP/2 Burst Pipe &amp; Priority Shaper</div>
+      </div>
+    </div>
+    <div class="mode-switch" role="tablist">
+      <button class="mode-btn" id="btn-single" onclick="setMode('single')">Standard Burst (2.0M Creator)</button>
+      <button class="mode-btn active" id="btn-primetime" onclick="setMode('primetime')">Prime-Time Quota-Ramp (3x Waves, 7x 2.0M @ 40s)</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- KPI Comparison Row -->
+    <section class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Baseline Unfiltered Multi-Cell Pipeline</h2>
+          <span class="pill pill-red" id="base-badge">0/3 Daily AutoQuota Blocks</span>
+        </div>
+        <div class="grid-4">
+          <div>
+            <div class="metric-label">Theoretical 200 OK Ceiling</div>
+            <div class="metric-val" id="base-ceiling">568.8k/m</div>
+            <div class="metric-label">After 5.2% dormant 404 burn</div>
+          </div>
+          <div>
+            <div class="metric-label">Realized Stranded Goodput</div>
+            <div class="metric-val" id="base-goodput">540.4k/m</div>
+            <div class="metric-label">5.0% multi-cell stranding</div>
+          </div>
+          <div>
+            <div class="metric-label">FIFO VIP Latency</div>
+            <div class="metric-val" style="color:var(--gcp-red)" id="base-vip">&gt; 60s</div>
+            <div class="metric-label" id="base-429">HTTP 429 burst spikes</div>
+          </div>
+          <div>
+            <div class="metric-label">Client 4xx Rate</div>
+            <div class="metric-val" style="color:var(--gcp-red)" id="base-4xx">5.2%</div>
+            <div class="metric-label">Fails &lt; 5.0% AutoQuota gate</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">GCP Serverless Side-Plane (Cloud Run + Direct APNs)</h2>
+          <span class="pill pill-green" id="sp-badge">3/3 Daily AutoQuota Blocks</span>
+        </div>
+        <div class="grid-4">
+          <div>
+            <div class="metric-label">FCM Load Reduction</div>
+            <div class="metric-val" style="color:var(--gcp-green)" id="sp-reduction">-78.0%</div>
+            <div class="metric-label" id="sp-fcm-vol">3.08M FCM / wave</div>
+          </div>
+          <div>
+            <div class="metric-label">Sustained Plateau</div>
+            <div class="metric-val" style="color:var(--gcp-blue)" id="sp-plateau">5.92m @ 520k/m</div>
+            <div class="metric-label">86.7% of 600k/min cap</div>
+          </div>
+          <div>
+            <div class="metric-label">VIP Preemption SLA</div>
+            <div class="metric-val" style="color:var(--gcp-green)" id="sp-vip">7.6s</div>
+            <div class="metric-label" id="sp-active">Active-7d: 25.4s</div>
+          </div>
+          <div>
+            <div class="metric-label">Client 4xx / 429s</div>
+            <div class="metric-val" style="color:var(--gcp-green)" id="sp-4xx">0.4% / 0</div>
+            <div class="metric-label" id="sp-conserved">100% conserved</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Minute-by-Minute SVG Telemetry Chart -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title" id="chart-title">Minute-by-Minute FCM Dispatch Telemetry (Identical 7x 2.0M @ 40s Wave)</h2>
+        <span class="pill pill-blue" id="chart-subtitle">5m Min() &gt;= 80% (480k/min) AutoQuota Gatekeeper</span>
+      </div>
+      <div id="svg-chart-container"></div>
+      <div class="legend">
+        <span><span class="legend-dot" style="background:#5f6368"></span>600k/min Default Quota Cap</span>
+        <span><span class="legend-dot" style="background:#d93025"></span>568.8k/min Theoretical 200 OK Ceiling (5.2% 404 burn)</span>
+        <span><span class="legend-dot" style="background:#b06000"></span>Baseline Stranded Goodput (540.4k/min, &gt;5% 4xx disqualified)</span>
+        <span><span class="legend-dot" style="background:#188038"></span>480k/min (80%) AutoQuota Sustained 5m Threshold</span>
+        <span><span class="legend-dot" style="background:#1a73e8"></span>Side-Plane Plateau (520k/min for 5.92m, 0.4% 4xx)</span>
+      </div>
+    </section>
+
+    <!-- 6-Module Compression Waterfall -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">Audience Compression &amp; Dual-Transport Offload Waterfall</h2>
+        <span class="pill pill-green" id="wf-conservation">100% Exact Message Conservation</span>
+      </div>
+      <div class="waterfall" id="waterfall-grid"></div>
+    </section>
+
+    <!-- Interactive Cross-Device Inbox + Live GCP Sandbox Probe -->
+    <section class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Cross-Device Inbox &amp; Silent Tap-to-Dismiss</h2>
+          <button class="btn btn-secondary" onclick="resetInbox()">Reset Unread Session</button>
+        </div>
+        <div class="subtitle" style="margin-bottom:10px">
+          Tapping any card marks it READ and dispatches silent background dismissal envelopes (apns-priority: 5 on iOS/iPadOS, FCM data-sync on Android, WebSocket toast sync on Web) with zero origin wakeup RPCs.
+        </div>
+        <div id="inbox-items"></div>
+        <div class="device-grid" id="device-trays"></div>
+        <pre class="probe-out" id="tap-log" style="display:none"></pre>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Live Google Cloud -&gt; FCM Backbone Probe</h2>
+          <span class="pill pill-blue">Server-Pinned Sandbox Allowlist (&lt;= 6 req/min)</span>
+        </div>
+        <div class="subtitle" style="margin-bottom:12px">
+          Executes a real HTTP/2 validate_only POST to fcm.googleapis.com pinned strictly on the server to the configured sandbox project (ignoring client parameters), verifying negotiated HTTP/2.0 RTT and field-aware token pruning vs. schema 400 preservation.
+        </div>
+        <button class="btn" onclick="runLiveProbe()">Run Live Google Cloud -&gt; FCM Backbone Probe</button>
+        <pre class="probe-out" id="probe-output">Click the button above to execute a live HTTP/2 sandbox probe.</pre>
+      </div>
+    </section>
+
+    <!-- Per-Creator SLA Breakdown Table (Prime-Time Wave) -->
+    <section class="card" id="creator-table-card">
+      <div class="card-header">
+        <h2 class="card-title">Staggered Prime-Time Wave Per-Creator SLA Verification (7x 2.0M @ 40s)</h2>
+        <span class="pill pill-green">VIP &lt; 8s | Active-7d &lt; 45s | Worst Tier-3 &lt; 160s</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Creator Arrival</th>
+            <th>Arrival Offset</th>
+            <th>Tier 1 VIP (66k)</th>
+            <th>Tier 2 Active-7d (154k)</th>
+            <th>Tier 3 Casual Completion (220k)</th>
+          </tr>
+        </thead>
+        <tbody id="creator-tbody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    let currentMode = 'primetime';
+    let simData = null;
+
+    function fmtK(n) {
+      if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+      if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+      return String(n);
+    }
+
+    async function loadSimulation() {
+      const resp = await fetch('/api/simulate');
+      simData = await resp.json();
+      renderSimulation();
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('btn-single').classList.toggle('active', mode === 'single');
+      document.getElementById('btn-primetime').classList.toggle('active', mode === 'primetime');
+      renderSimulation();
+    }
+
+    function renderSimulation() {
+      if (!simData) return;
+      const isPrime = currentMode === 'primetime';
+      const base = isPrime ? simData.prime_time_baseline : simData.single_baseline;
+      const sp = isPrime ? simData.prime_time_sideplane : simData.single_sideplane;
+      const funnel = isPrime ? simData.prime_time_funnel : simData.single_funnel;
+      const series = isPrime ? simData.prime_time_series : simData.single_series;
+
+      document.getElementById('base-badge').textContent = base.qualifying_blocks_daily + '/3 Daily AutoQuota Blocks';
+      document.getElementById('base-ceiling').textContent = fmtK(base.theoretical_ceiling_per_min) + '/m';
+      document.getElementById('base-goodput').textContent = fmtK(base.realized_goodput_per_min) + '/m';
+      document.getElementById('base-vip').textContent = base.vip_latency_sec.toFixed(1) + 's';
+      document.getElementById('base-429').textContent = fmtK(base.http_429_rejections) + ' HTTP 429s';
+      document.getElementById('base-4xx').textContent = base.client_4xx_pct.toFixed(1) + '%';
+
+      document.getElementById('sp-badge').textContent = isPrime
+        ? sp.qualifying_blocks_daily + '/3 Daily AutoQuota Blocks'
+        : 'Sub-Minute Burst (< 15s VIP)';
+      document.getElementById('sp-reduction').textContent = '-' + sp.fcm_reduction_pct.toFixed(1) + '%';
+      document.getElementById('sp-fcm-vol').textContent = fmtK(sp.net_fcm_delivered_per_wave) + ' FCM + ' + fmtK(sp.direct_apns_per_wave) + ' APNs';
+      document.getElementById('sp-plateau').textContent = sp.plateau_minutes.toFixed(2) + 'm @ ' + fmtK(sp.peak_sustained_per_min) + '/m';
+      document.getElementById('sp-vip').textContent = sp.vip_latency_sec.toFixed(1) + 's';
+      document.getElementById('sp-active').textContent = 'Active-7d: ' + sp.active_7d_latency_sec.toFixed(1) + 's';
+      document.getElementById('sp-4xx').textContent = sp.client_4xx_pct.toFixed(1) + '% / ' + sp.http_429_rejections;
+      document.getElementById('sp-conserved').textContent = sp.message_conserved ? '100% conserved' : 'Mismatch';
+
+      document.getElementById('chart-title').textContent = isPrime
+        ? 'Minute-by-Minute FCM Dispatch Telemetry (Identical 7x 2.0M @ 40s Wave)'
+        : 'Minute-by-Minute FCM Dispatch Telemetry (Single 2.0M-Follower Go-Live)';
+
+      renderSVGChart(series);
+      renderWaterfall(funnel);
+
+      const tableCard = document.getElementById('creator-table-card');
+      if (isPrime && sp.creator_latencies) {
+        tableCard.style.display = 'block';
+        document.getElementById('creator-tbody').innerHTML = sp.creator_latencies.map(c =>
+          `<tr>
+            <td><strong>Creator ${c.creator_index}</strong></td>
+            <td>t + ${c.arrival_sec}s</td>
+            <td><span class="pill pill-green">${c.vip_latency_sec.toFixed(1)}s</span></td>
+            <td>${c.active_7d_latency_sec.toFixed(1)}s</td>
+            <td>${c.tier3_latency_sec.toFixed(1)}s</td>
+          </tr>`
+        ).join('');
+      } else {
+        tableCard.style.display = 'none';
+      }
+    }
+
+    function renderSVGChart(series) {
+      const w = 960, h = 290, padL = 65, padR = 24, padT = 20, padB = 34;
+      const plotW = w - padL - padR, plotH = h - padT - padB;
+      const maxY = 650000;
+      const yPos = v => padT + plotH - (v / maxY) * plotH;
+      const xPos = i => padL + (i / Math.max(1, series.length - 1)) * plotW;
+
+      const linePath = (vals) => vals.map((v, i) => (i === 0 ? 'M' : 'L') + xPos(i).toFixed(1) + ' ' + yPos(v).toFixed(1)).join(' ');
+      const basePath = linePath(series.map(p => p.baseline_goodput));
+      const spPath = linePath(series.map(p => p.sideplane_goodput));
+
+      let gridLines = '';
+      for (const tick of [0, 200000, 400000, 600000]) {
+        const y = yPos(tick).toFixed(1);
+        gridLines += `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="#eceff1" stroke-width="1"/>`;
+        gridLines += `<text x="${padL - 8}" y="${Number(y) + 4}" text-anchor="end" font-size="11" fill="#5f6368">${tick / 1000}k</text>`;
+      }
+
+      let xLabels = '';
+      series.forEach((p, i) => {
+        const x = xPos(i).toFixed(1);
+        xLabels += `<text x="${x}" y="${h - 10}" text-anchor="middle" font-size="11" fill="#5f6368">Min ${p.minute}</text>`;
+      });
+
+      const refLine = (val, color, dash, label) => {
+        const y = yPos(val).toFixed(1);
+        return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="${color}" stroke-width="1.5" stroke-dasharray="${dash}"/>
+                <text x="${w - padR - 4}" y="${Number(y) - 4}" text-anchor="end" font-size="10.5" font-weight="600" fill="${color}">${label}</text>`;
+      };
+
+      const spDots = series.map((p, i) =>
+        `<circle cx="${xPos(i).toFixed(1)}" cy="${yPos(p.sideplane_goodput).toFixed(1)}" r="4" fill="#1a73e8"/>`
+      ).join('');
+      const baseDots = series.map((p, i) =>
+        `<circle cx="${xPos(i).toFixed(1)}" cy="${yPos(p.baseline_goodput).toFixed(1)}" r="3.5" fill="#b06000"/>`
+      ).join('');
+
+      document.getElementById('svg-chart-container').innerHTML = `
+        <svg viewBox="0 0 ${w} ${h}" width="100%" height="auto" style="max-height:310px">
+          ${gridLines}
+          ${refLine(600000, '#5f6368', '4,4', '600k/m Default FCM Limit')}
+          ${refLine(568800, '#d93025', '6,3', '568.8k/m Theoretical 200 OK Ceiling')}
+          ${refLine(480000, '#188038', '5,3', '480k/m (80%) AutoQuota 5m Floor')}
+          <path d="${basePath}" fill="none" stroke="#b06000" stroke-width="2.5" stroke-dasharray="6,4"/>
+          <path d="${spPath}" fill="none" stroke="#1a73e8" stroke-width="3.2"/>
+          ${baseDots}
+          ${spDots}
+          ${xLabels}
+        </svg>`;
+    }
+
+    function renderWaterfall(f) {
+      const steps = [
+        { title: '1. Raw Follower Edges', val: fmtK(f.raw_followers), delta: '64-Shard Store Fan-Out', final: false },
+        { title: '2. Dormancy & OS Gate', val: fmtK(f.after_dormancy_os_gate), delta: '-50.0% (<=30d & OS perm)', final: false },
+        { title: '3. Presence Bitmap', val: fmtK(f.after_presence_bitmap), delta: '-12.0% WebSocket Toasts', final: false },
+        { title: '4. Direct APNs Offload', val: fmtK(f.direct_apns_offloaded), delta: '-50.0% iOS Direct ES256', final: false },
+        { title: '5. Net FCM Burst Pipe', val: fmtK(f.net_fcm_pushes), delta: '-' + f.fcm_reduction_pct.toFixed(1) + '% Total FCM Burn', final: true },
+      ];
+      document.getElementById('waterfall-grid').innerHTML = steps.map(s =>
+        `<div class="wf-step ${s.final ? 'final' : ''}">
+          <div style="font-size:12px;font-weight:600">${s.title}</div>
+          <div class="wf-num">${s.val}</div>
+          <div class="wf-delta">${s.delta}</div>
+        </div>`
+      ).join('');
+    }
+
+    async function loadInbox() {
+      const resp = await fetch('/api/inbox');
+      const snap = await resp.json();
+      renderInbox(snap);
+    }
+
+    function renderInbox(snap) {
+      document.getElementById('inbox-items').innerHTML = (snap.items || []).map(it =>
+        `<div class="inbox-item">
+          <div>
+            <strong>${it.title}</strong>
+            <div class="subtitle">${it.body} (${it.payload_bytes} B)</div>
+          </div>
+          ${it.status === 'UNREAD'
+            ? `<button class="btn" onclick="tapItem('${it.id}')">Tap &amp; Dismiss</button>`
+            : `<span class="pill pill-green">READ</span>`}
+        </div>`
+      ).join('');
+
+      document.getElementById('device-trays').innerHTML = (snap.devices || []).map(d =>
+        `<div class="device-tray">
+          <strong>${d.label}</strong>
+          <div style="margin-top:4px;color:${d.visible_banner_ids.length ? '#1a73e8' : '#188038'}">
+            ${d.visible_banner_ids.length ? d.visible_banner_ids.length + ' active banner(s): ' + d.visible_banner_ids.join(', ') : 'Tray Cleared (0 banners)'}
+          </div>
+        </div>`
+      ).join('');
+    }
+
+    async function tapItem(id) {
+      const resp = await fetch('/api/inbox/tap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notification_id: id })
+      });
+      const res = await resp.json();
+      renderInbox(res.snapshot);
+      const log = document.getElementById('tap-log');
+      log.style.display = 'block';
+      log.textContent = JSON.stringify({
+        tapped_id: res.tapped_id,
+        status: res.status,
+        origin_wakeup_rpcs: res.origin_wakeup_rpcs,
+        dismiss_envelopes: res.dismiss_envelopes
+      }, null, 2);
+    }
+
+    async function resetInbox() {
+      const resp = await fetch('/api/inbox/reset', { method: 'POST' });
+      const snap = await resp.json();
+      renderInbox(snap);
+      document.getElementById('tap-log').style.display = 'none';
+    }
+
+    async function runLiveProbe() {
+      const out = document.getElementById('probe-output');
+      out.textContent = 'Running live HTTP/2 probe against server-pinned sandbox FCM endpoint...';
+      try {
+        const resp = await fetch('/api/probe-fcm', { method: 'POST' });
+        const data = await resp.json();
+        out.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        out.textContent = 'Probe request failed: ' + err;
+      }
+    }
+
+    loadSimulation();
+    loadInbox();
+  </script>
+</body>
+</html>
