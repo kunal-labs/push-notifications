@@ -1,4 +1,4 @@
-# push-notifications — Agent Charter (v2 · 2026-11-16)
+# push-notifications — Agent Charter (v3 · 2026-11-16)
 > Follow on every task. On conflict, stop and raise `⚠️ CHARTER CONFLICT: <ID>`.
 > Amend only via @techo Charter Capture or /discuss → ADR.
 
@@ -23,6 +23,7 @@ Hyperscale live-stream push platform (100k–10M+ followers/channel): <15s VIP a
 - D1 Decoupled Subscription/Device Store (channel_followers + user_devices, 64 parallel shards) replacing FCM Topics (pilot 2026-10-19).
 - D2 L3 Cloud Run Burst Workers (Native Go, 50-stream HTTP/2, declarative max-instances) + Direct APNs offload (pilot 2026-10-19).
 - D3 5-min stream-flap debounce, omit Android collapse_key, ttl: 1800s, per-user frequency <=5/min (VIP-first) (pilot 2026-10-19).
+- D4 L3 egress is one Cloud Run service fed by Pub/Sub push (max-instances × per-instance QPS = fleet cap under project quota, 2 warm); L2 enforces tier priority by releasing VIP first and gating lower tiers (user directive, 2026-11-16).
 
 ## Non-goals
 - X1 Native FCM Topics for user-to-streamer follow graphs.
